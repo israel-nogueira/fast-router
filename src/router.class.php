@@ -107,7 +107,43 @@ namespace IsraelNogueira\fastRouter;
 		|	Criamos o regex que será validado na sequencia 
 		|------------------------------------------------------------------
 		*/
-	
+			public function generate($routeName, array $params = [])
+				{
+
+					// Check if named route exists
+					if (!isset($this->namedRoutes[$routeName])) {
+						throw new RuntimeException("Route '{$routeName}' does not exist.");
+					}
+
+					// Replace named parameters
+					$route = $this->namedRoutes[$routeName];
+
+					// prepend base path to route url again
+					$url = $this->basePath . $route;
+
+					if (preg_match_all('`(/|\.|)\[([^:\]]*+)(?::([^:\]]*+))?\](\?|)`', $route, $matches, PREG_SET_ORDER)) {
+						foreach ($matches as $index => $match) {
+							list($block, $pre, $type, $param, $optional) = $match;
+
+							if ($pre) {
+								$block = substr($block, 1);
+							}
+
+							if (isset($params[$param])) {
+								// Part is found, replace for param value
+								$url = str_replace($block, $params[$param], $url);
+							} elseif ($optional && $index !== 0) {
+								// Only strip preceding slash if it's not at the base
+								$url = str_replace($pre . $block, '', $url);
+							} else {
+								// Strip match block
+								$url = str_replace($block, '', $url);
+							}
+						}
+					}
+
+					return $url;
+				}
 			public static function gerarRegex( $rota ){
 				$rota             = str_replace( ["{","}"], ["｛", "｝"], $rota );
 				$regex_parametros = "/｛(?'chamada'((((((?'parametro'([a-z0-9\_,]+))\:)?(?'valor'([^｛｝]+))))|(?R))*))｝/";
@@ -302,14 +338,16 @@ namespace IsraelNogueira\fastRouter;
 		|
 		|
 		*/
-			private static function callMiddleware($middlewares)
-			{
-				$middlewares = (!is_array($middlewares)) ? [$middlewares] : $middlewares;
-
-				foreach ($middlewares as $middleware) {
+			private static function callMiddleware($middlewares, $callback){
+				$middlewares = (!is_array($middlewares))?[$middlewares]:$middlewares;
+				$next = $callback;
+				for ($i = count($middlewares) - 1; $i >= 0; $i--) {
+					$middleware = $middlewares[$i];
 					// Verifica se a middleware é uma função simples
 					if (is_callable($middleware)) {
-						call_user_func($middleware);
+						$next = function () use ($middleware, $next) {
+							call_user_func($middleware, $next);
+						};
 					} else {
 						$middleware_parts = explode('@', $middleware);
 						$middleware_class = $middleware_parts[0];
@@ -317,27 +355,37 @@ namespace IsraelNogueira\fastRouter;
 
 						// Verifica se a middleware é de uma classe estática
 						if (is_callable([$middleware_class, $middleware_method])) {
-							call_user_func([$middleware_class, $middleware_method]);
+							$next = function () use ($middleware_class, $middleware_method, $next) {
+								call_user_func([$middleware_class, $middleware_method], $next);
+							};
 						} else {
 							// Verifica se a middleware é de uma classe que está extendendo a nossa classe de rotas
 							if (is_subclass_of($middleware_class, self::class)) {
 								$middleware_instance = new $middleware_class;
-								$middleware_instance->$middleware_method();
+								$next = function () use ($middleware_instance, $middleware_method, $next) {
+									call_user_func([$middleware_instance, $middleware_method], $next);
+								};
 							} else {
 								// Verifica se a middleware é da nossa classe de rotas
 								if (method_exists(self::class, $middleware_method)) {
-									call_user_func([self::class, $middleware_method]);
+									$next = function () use ($middleware_method, $next) {
+										call_user_func([self::class, $middleware_method], $next);
+									};
 								} else {
 									// Verifica se a middleware é de uma classe que estamos extendendo
 									$current_class = get_called_class();
 									if (method_exists($current_class, $middleware_method)) {
-										call_user_func([$current_class, $middleware_method]);
+										$next = function () use ($current_class, $middleware_method, $next) {
+											call_user_func([$current_class, $middleware_method], $next);
+										};
 									}
 								}
 							}
 						}
 					}
 				}
+				// Executa o callback passado como parâmetro
+				$next();
 			}
 
 
@@ -349,23 +397,32 @@ namespace IsraelNogueira\fastRouter;
 		|
 		*/
 			public static function group($_ROTA, $_ROUTERS=NULL){
-
 				if(is_array($_ROTA)){
-					if(isset($_ROTA['prefix'])){
-						array_push(self::$group_routers, array('route' => $_ROTA['prefix'], 'routers' => array()));
-					}
 					if(isset($_ROTA['middleware'])){
-						self::callMiddleware($_ROTA['middleware']);
+						self::callMiddleware($_ROTA['middleware'], function()use($_ROUTERS){
+							if(isset($_ROTA['prefix'])){
+								array_push(self::$group_routers, array('route' => $_ROTA['prefix'], 'routers' => array()));
+								if (is_callable($_ROUTERS)) {
+									$_ROUTERS();
+									array_pop(self::$group_routers);
+									return new static;
+								}
+							}else{
+								if (is_callable($_ROUTERS)) {
+									$_ROUTERS();
+									return new static;
+								}
+							}
+						});
 					}
-
 				}else{
 					array_push(self::$group_routers, array('route' => $_ROTA, 'routers' => array()));
+					if (is_callable($_ROUTERS)) {
+						$_ROUTERS();
+						array_pop(self::$group_routers);
+						return new static;
+					}
 				}
-				if (is_callable($_ROUTERS)) {
-					$_ROUTERS();
-					array_pop(self::$group_routers); // remove o grupo atual após a execução
-				}
-				return new static;
 			}
 
 		/*
