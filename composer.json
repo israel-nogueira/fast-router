@@ -1,0 +1,54 @@
+{
+    "name": "israel-nogueira/fast-router",
+    "description": "A powerful PHP Router for PSR7 messages inspired by the Laravel API",
+    "keywords": [
+        "israel",
+        "nogueira",
+        "fast",
+        "router"
+    ],
+    "homepage": "https://github.com/israel-nogueira/fast-router",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Israel Nogueira",
+            "email": "israel@feats.com.br",
+            "homepage": "https://github.com/israel-nogueira",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^7.3||^8.0",
+        "altorouter/altorouter": "^2.0.2",
+        "mindplay/middleman": "^3.0.3",
+        "php-di/invoker": "^2.3.0",
+        "psr/container": "^1.0",
+        "psr/http-message": "^1.0",
+        "psr/http-server-middleware": "^1.0",
+        "spatie/macroable": "^1.0",
+        "laminas/laminas-diactoros": "^2.4"
+    },
+    "require-dev": {
+        "php-di/php-di": "^6.3.4",
+        "phpunit/phpunit": "^9.5",
+        "php-coveralls/php-coveralls": "^2.4",
+        "mockery/mockery": "^1.4.3",
+        "squizlabs/php_codesniffer": "^3.6.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "IsraelNogueira\\fastRouter\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "IsraelNogueira\\fastRouter\\Test\\": "tests"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
