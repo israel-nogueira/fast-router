@@ -2,7 +2,8 @@
     "name": "israel-nogueira/fast-router",
     "description": "Classe para gerenciar as suas rotas no PHP com facilidade e segurança",
     "homepage": "https://github.com/israel-nogueira/fast-router",
-    "license": "MIT",
+    "type": "library",
+    "license": "GPL-3.0-or-later",
     "keywords": [
         "israel",
         "nogueira",
@@ -20,10 +21,12 @@
     "require": {
         "php": "^7.3||^8.0"
     },
-    "require-dev": {},
     "autoload": {
         "psr-4": {
             "IsraelNogueira\\fastRouter\\": "src"
         }
+    },
+    "extra": {
+        "composer-exit-class": "IsraelNogueira\\FastRouter\\ComposerInstaller"
     }
 }
