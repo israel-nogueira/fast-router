@@ -1,11 +1,12 @@
 <p align="center">
-    <img src="https://raw.githubusercontent.com/israel-nogueira/fast-router/main/src/topo_README.png" width="650"/>
+    <img src="https://github.com/israel-nogueira/fast-router/blob/main/src/topo_README.png" width="650"/>
 </p>
 <p align="center">
     <a href="#instalação" target="_Self">Instalação</a> |
-    <a href="#configurando-a-base" target="_Self">Config a base</a> |
-    <a href="#snippets-para-vscode" target="_Self">Snippets</a> |
-    <a href="#criando-models" target="_Self">Models</a> |
+    <a href="#primeiros-passos" target="_Self">Primeiros passos</a> |
+    <a href="#agrupamentos" target="_Self">Agrupamentos</a> |
+    <a href="#middlewares" target="_Self">Middlewares</a> |
+    <a href="#regex" target="_Self">Regex</a> |
 </p>
 <p align="center">
     <a href="https://packagist.org/packages/israel-nogueira/galaxy-db"><img src="https://poser.pugx.org/israel-nogueira/galaxy-db/v/stable.svg"></a>
@@ -28,617 +29,219 @@ Instale via composer.
 
 ## PRIMEIROS PASSOS
 
-Basta importar o autoload e o namespace da sua Model e utilizar
+Basta importar o autoload e inserir o namespace
 
 ```php
 <?php
     include "vendor\autoload.php";
-    use IsraelNogueira\Models\usuariosModel;
+    use IsraelNogueira\fastRouter\router;
 ?>
 ```
 
-A _Model_ é o uso da classe abstrata da classe principal.  
-Nela serão cadastrados os parâmetros de uso da classe.
-
-```php
-<?php
-    namespace IsraelNogueira\Models;
-    use IsraelNogueira\galaxyDB\galaxyDB;
-
-    class usuariosModel    extends    galaxyDB    {
-        //  TABELA PADRÃO 
-        protected $table =  'usuarios';
-        //  COLUNAS BLOQUEADAS 
-        protected $columnsBlocked = [];
-        //  COLUNAS PERMITIDAS 
-        protected $columnsEnabled = [];
-        //  FUNÇÕES MYSQL PROIBIDAS 
-        protected $functionsBlocked = [];
-        //  FUNÇÕES MYSQL PERMITIDAS 
-        protected $functionsEnabled = [];
-        //  FUNÇÕES MYSQL PERMITIDAS 
-        protected $charactersEnabled = [];
-        //  FUNÇÕES MYSQL PROIBIDOS 
-        protected $charactersBlocked = [];
-
-    }
-?>
-```
-
-
-## EXEMPLOS DE USO<br/>
-### Select simples
-
-O exemplo apresenta um `SELECT` básico com um filtro apenas para usuário com `ID=7`.<br/>  
-Uma `array` vazia será retornada caso a consulta não encontre resultados.
-
-```php
-
-<?php
-    include "vendor\autoload.php";
-    use  App\Models\usuariosModel;
-
-    $users =  new usuariosModel();
-    $users->colum('nome');//unitario
-    $users->colum('email as mail');// com alias
-    $users->colum(['endereco','telefone']); // ou ainda varias de uma vez
-    $users->set_where('id=7');
-    $users->select();
-    $_RESULT = $users->fetch_array(); // retorna um ARRAY
-
-?>
-```
-
-Resultará no seguinte select:
-
-```sql
-SELECT nome,email as mail,endereco,telefone FROM usuarios WHERE id=7
-```
-
-### Select mais completo
-
-```php
-<?php
-    include "vendor\autoload.php";
-    use  App\Models\usuariosModel;
-
-    $users =  new  usuariosModel();
-    $users->colum('nome');
-    $users->colum('bairro_id');
-
-    $users->join('INNER','bairros',' bairros.id=usuarios.bairro_id')
-            ->join('LEFT','cidades',' cidades.id=usuarios.cidade_id'); // TIPO | TABELA | ON
-            
-    $users->group_by('bairros'); // GROUP BY
-
-    $users->like('nome','%edro%')->like('nome','%ão%');
-
-    $users->order('nome','asc')->order('idade','desc'); // ORDER BY nome ASC, idade DESC
-
-    $users->limit(1,10); // SET LIMIT 1, 10
-    $users->where('cidades.id=11');
-    $users->distinct(); // ignora os resultados repetidos
-    $users->debug(true); // false não retornará erros e falhas. Default:true
-    $users->select();
-
-    // $_ARRAY[0]["nome"] | $_ARRAY[1]["nome"] 
-    $_ARRAY = $users->fetch_array(); 
-
-    // $_OBJECT[0]->nome | $_OBJECT[1]->nome
-    $_OBJECT = $users->fetch_obj();
-    
-?>
-```
-
-Resultará em uma query assim:
-
-```sql
-SELECT  DISTINCT  nome,  bairro_id  FROM  usuarios  
-INNER  JOIN  bairros  ON  bairros.id  =  usuarios.bairro_id  
-LEFT  JOIN  cidades  ON  cidades.id  =  usuarios.cidade_id  
-WHERE  (  
-        cidades.id  =  11  
-        AND  (
-            Lower(nome)  LIKE  Lower("%edro%")  OR  Lower(nome)  LIKE  Lower("%ão%") 
-        )
-    ) GROUP  BY  bairros ORDER BY nome ASC, idade DESC
-```
-
-## SUB SELECTS
-
-```php
-<?php
-    include "vendor\autoload.php";
-    use  App\Models\usuariosModel;
-
-    $users =  new  usuariosModel();
-    // Puxamos todos usuarios que morem na cidade 11 ( 11=Curitiba )
-    // Criamos um sub select e instanciamos como "cidade_11"
-    $users->set_where('cidade_id=11');
-    $users->setSubQuery('cidade_11');
-
-    // Agora selecionamos com o tableSubQuery() nossa subQuery e damos o alias de "curitiba"
-    $users->tableSubQuery('(cidade_11) curitiba');
-    $users->set_where('curitiba.solteiros=1');
-
-    // Poderiamos parar poraqui mas se quiser aprofundarmos
-    $users->setSubQuery('solteiros'); 
-    $users->tableSubQuery('(solteiros) sexo');
-    $users->set_where('solteiros.sexo="male"');
-
-    //    Executamos o select puxando os moradores da cidade 11 
-    //    e depois filtramos os solteiros
-    $users->select('homens_solteiros_curitiba');
-
-    $_ARRAY = $users->fetch_array('homens_solteiros_curitiba'); 
-
-?>
-```
-
-Isso resultará na seguinte query:
-
-```sql
-SELECT  *  
-    FROM  (SELECT  *  
-        FROM  (SELECT  *  
-                FROM  usuarios
-                WHERE  (  cidade_id  =  11  ))  curitiba  
-        WHERE  (  curitiba.solteiros  =  1  ))  sexo  
-WHERE  (  solteiros.sexo  =  "male"  )
-```
-
-Também podemos aplicar uma subquery a uma coluna:
-
-```php
-<?php
-    include "vendor\autoload.php";
-    use  App\Models\meusUsuario;
-    $users =  new  usuariosModel();
-
-    // Aqui apenas trazemos o total de usuarios que moram na cidade 11
-    $users->colum('COUNT(1) as total_registro ');
-    $users->set_where('cidade_id=11');
-    $users->setSubQuery('total_11'); // <----- Cria subquery "total_11"
-
-    $users->colum('user.*');
-    $users->columSubQuery('(total_11) AS total_curitibanos'); // Monta coluna com a Subquery
-    $users->set_where('total_curitibanos>100');
-    $users->prepare_select('homens_solteiros_curitiba');    
-    $_ARRAY = $users->fetch_array('homens_solteiros_curitiba'); 
-
-?>
-```
-
-```sql
-SELECT user.*, (
-    SELECT  COUNT(1) AS total_registro FROM users WHERE(cidade_id=11)
-)  AS  total_curitibanos  
-FROM  users  WHERE  (  total_curitibanos  >  100  )
-```
-
-### MULTIPLOS SELECTS
-
-Podemos também executar múltiplos selects em uma só instancia:
-
-```php
-<?php
-    include "vendor\autoload.php";
-    use  App\Models\usuariosModel;
-
-    $users =  new  usuariosModel();
-    $users->colum('username');
-    $users->colum('email');
-    $users->limit(1);
-    $users->prepare_select('users_1'); //Guardamos a query
-    
-    $users->table('financeiro__historico'); // pode setar uma nova tabela
-    $users->colum('VALOR');
-    $users->limit(1);
-    $users->where('PAGADOR="'.$uid.'"');
-    $users->prepare_select('valores');//Guardamos a query
-
-    // executamos todas as querys 
-    $getInfoBanner->execQuery();
-
-    $_ARRAY = $users->fetch_array(); 
-
-?>
-```
-
-Nos resultará no seguinte array:
-
-```json
-{
-    "users_1":[
-                {
-                    "username": "username_01",
-                    "email": "exemplo@email.com"
-                }
-            ],
-    "valores":[
-                {
-                    "VALOR": "100.00"
-                }
-            ]
-}
-```
-
-## Insert
-
-Podemos inserir dados de algumas formas diferentes:
-
-```php
-<?php
-    include "vendor\autoload.php";
-    use  App\Models\usuariosModel;
-
-    //FORMA SIMPLIFICADA
-    $users =  new  usuariosModel();
-    $users->coluna1 = 'valor';
-    $users->coluna2 = 'valor';
-    $users->coluna3 = 'valor';
-    $users->insert();
-
-    //Todas as condicionais podem ser aplicadas aqui também
-    $users =  new  usuariosModel();
-    $users->coluna1 = 'valor';
-    $users->coluna2 = 'valor';
-    $users->coluna3 = 'valor';
-    $users->where('NOW() > "00-00-00 00:00:00"');
-    $users->insert();
-?>
-```
-
-## MULTIPLOS INSERTS + TRANSACTION + ROLLBACK
-
-```php
-<?
-    // MULTIPLOS INSERTS
-    $users =  new  usuariosModel();
-    $users->coluna1 = 'valor';
-    $users->coluna2 = 'valor';
-    $users->coluna3 = 'valor';
-    $users->prepare_insert();
-
-    $users->coluna1 = 'valor';
-    $users->coluna2 = 'valor';
-    $users->coluna3 = 'valor';
-    $users->where('NOW() > "00-00-00 00:00:00"');
-    $users->prepare_insert();
-
-    // TRANSACTION + ROLLBACK
-    $users->transaction(function ($ERROR) {
-        throw  new  ErrorException($ERROR, 1); // erro
-    });
-
-    //EXECUTA OS INSERTS
-    $users->execQuery();
-?>
-```
-
-## INSERT ARRAY + TRANSACTION + ROLLBACK
-
-```php
-<?
-    //PUXANDO UMA ARRAY
-    $users =  new  usuariosModel();
-    $users->set_insert_obj(['UID'=>32,'NOME'=>'João', 'IDADE'=>27]);
-    $users->prepare_insert();
-
-    //DENTRO DE UM LAÇO
-    foreach($_RESULTADO as $OBJ){
-        $users->set_insert_obj($OBJ);
-        $users->prepare_insert();
-    }
-
-    // TRANSACTION + ROLLBACK
-    $users->transaction(function ($ERROR) {
-        throw  new  ErrorException($ERROR, 1); // erro
-    });
-
-    //EXECUTA OS INSERTS
-    $users->execQuery();
-?>
-```
-
-## UPDATE:
-
-```php
-<?php
-    include "vendor\autoload.php";
-    use  App\Models\usuariosModel;
-
-    //FORMA SIMPLIFICADA
-    $users =  new  usuariosModel();
-    $users->coluna1 = 'valor';
-    $users->coluna2 = 'valor';
-    $users->coluna3 = 'valor';
-    $users->update();
-    
-    //Todas as condicionais podem ser aplicadas aqui também
-    $users =  new  usuariosModel();
-    $users->coluna1 = 'valor';
-    $users->coluna2 = 'valor';
-    $users->coluna3 = 'valor';
-    $users->where('UID="7365823765"');
-    $users->update();
-?>
-```
-
-## MULTIPLOS UPDATES + TRANSACTION + ROLLBACK:
-
-```php
-<?php
-    // MULTIPLOS UPDATES
-    $users =  new  usuariosModel();
-    $users->coluna1 = 'valor';
-    $users->coluna2 = 'valor';
-    $users->coluna3 = 'valor';
-    $users->where('UID="46746876"');
-    $users->prepare_update();
-    
-    $users->coluna1 = 'valor';
-    $users->coluna2 = 'valor';
-    $users->coluna3 = 'valor';
-    $users->where('UID="9653566573"');
-    $users->prepare_update();
-    
-    // TRANSACTION + ROLLBACK
-    $users->transaction(function ($ERROR) {
-        throw  new  ErrorException($ERROR, 1); // erro
-    });
-    
-    //EXECUTA OS UPDATES
-    $users->execQuery();
-?>
-```
-
-## MULTIPLOS UPDATES COM ARRAYS:
-
-```php
-<?php
-    //PUXANDO UMA ARRAY
-    $users =  new  usuariosModel();
-    $users->set_update_obj(['UID'=>32,'NOME'=>'João', 'IDADE'=>27]);
-    $users->prepare_update();
-
-    //DENTRO DE UM LAÇO
-    foreach($_RESULTADO as $OBJ){
-        $users->set_update_obj($OBJ);
-        $users->prepare_update();
-    }
-
-    // TRANSACTION + ROLLBACK
-    $users->transaction(function ($ERROR) {
-        throw  new  ErrorException($ERROR, 1); // erro
-    });
-
-    //EXECUTA OS INSERTS
-    $users->execQuery();
-?>
-```
-
-## DELETE
+Aqui segue um exemplo de uma aplicação simples da classe
 
 ```php
 <?php
 
-    //DELETE DIRETO E SIMPLES
-    $users =  new  usuariosModel();
-    $users->where('UID=32');
-    $users->delete();
+	namespace IsraelNogueira\Models;
+	use IsraelNogueira\fastRouter\router;
 
-    //PREPARANDO MULTIPLOS
-    $users =  new  usuariosModel();
-    $users->where('UID=32');
-    $users->prepare_delete();//Armazena
+	//-------------------------------------------------------------------------------
+	// No modo estático a requisição é direto no método
+	//-------------------------------------------------------------------------------
 
-    //DENTRO DE UM LAÇO
-    foreach($_RESULTADO as $OBJ){
-        $users->where('UID='.$OBJ['UID']);
-        $users->prepare_delete();//Armazena
-    }
-
-    // TRANSACTION + ROLLBACK
-    $users->transaction(function ($ERROR) {
-        throw  new  ErrorException($ERROR, 1); // erro
-    });
-
-    //EXECUTA OS DELETES
-    $users->execQuery();
+		router::get('admin/path1/path2', function () {});
+		router::post('admin/path1/path2', function () {});
+		router::put('admin/path1/path2', function () {});
+		router::delete('admin/path1/path2', function () {});
+	
+	//-------------------------------------------------------------------------------
+	// O método "any" aceita qualquer tipo de requisição
+	//-------------------------------------------------------------------------------
+	
+		router::any('admin/path1/path2', function () {});    		
+	
+	//-------------------------------------------------------------------------------
+	// Ele aceita o seguinte grupo de requests:
+	//-------------------------------------------------------------------------------
+	// 'ANY','MATH','GET', 'REDIRECT','POST','RMDIR','MKDIR',
+	// 'INDEX','MOVE','TRACE','DELETE','TRACK','PUT','HEAD','OPTIONS','CONNECT'
+	//
+	//
+	//  math aceitará os métodos listados na array 
+	//-------------------------------------------------------------------------------
+	
+		router::math(['POST','GET'],'admin/path1/path2', function () {});
+	
+	
 ?>
 ```
 
-## FUNÇÕES NA MODEL
-
-Você pode também estender padrões em sua model.  
-Podendo abstrair mais nossas consultas.
-
-Seguindo o exemplo abaixo:
-
-```php
-<?php
-    namespace IsraelNogueira\Models;
-    use IsraelNogueira\galaxyDB\galaxyDB;
-
-    class usuariosModel    extends    galaxyDB    {
-        protected $table=  'usuarios';
-
-        // AQUI MONTAMOS A NOSSA FUNÇÃO ESTENDIDA
-        public function cidadeEstado(){
-            $this->colum('city.nome as cidade');
-            $this->colum('uf.nome as uf');
-            $this->join('LEFT','table_cidade cidade','cidade.id=usuarios.cidade_id');
-            $this->join('LEFT','table_uf uf','uf.id=cidade.uf_id');
-        }
-
-    }
-?>
-```
-
-E quando for utilizar a classe:
+# AGRUPAMENTOS
 
 ```php
 
 <?php
-    include "vendor\autoload.php";
-    use  App\Models\usuariosModel;
+	namespace IsraelNogueira\Models;
+	use IsraelNogueira\fastRouter\router;
 
-    $users =  new usuariosModel();
-    $users->colum('nome');
-    $users->colum('idade');
-    $users->cidadeEstado(); //====> aqui executamos nossa função
-    $users->select();
-    $_RESULT = $users->fetch_array();
+	/*
+	
+	Rotas:
+	/admin
+	/admin/usuarios
+	/admin/fotos
+	/admin/produtos/detalhes
+	/admin/produtos/fotos
+	
+	*/
+
+
+	router::group('admin',function(){
+		router::get('usuarios', function () {});
+		router::get('fotos', function () {});
+		router::group('produtos',function(){
+			router::get('detalhes', function () {});
+			router::get('fotos', function () {});
+		})
+	})
 
 ?>
 ```
 
+# MIDDLEWARES
 
-# STORED PROCEDURES
+As middlewares são aplicáveis de  uma forma muito simples:
 
-    Uma Store Procedure, pode ser chamada de duas maneiras.
 
-### 1ª - Função ->SP()
+```php
 
-```$usuarios->sp( NOME_DA_SP, ARRAY_PARAMS );```
+<?php
+	namespace IsraelNogueira\Models;
+	use IsraelNogueira\fastRouter\router;
+
+	router::group([
+			'prefix'=>'/admin',
+			'middleware'=>['App/Middlewares/auth@middl_1','App/Middlewares/auth@middl_2','App/Middlewares/auth@middl_3']],
+			function(){
+				callback();
+			});
+	
+	
+?>
+```
+
+Cada função é definida de maneira que a próxima é executada apenas se a atual finalizou com sucesso;
+É passado como parametro único uma função _closure_ da próxima:
 
 ```php
 <?php
-    include "vendor\autoload.php";
-    use  App\Models\usuariosModel;
+	namespace IsraelNogueira\Models;
+	use IsraelNogueira\fastRouter\router;
+	
+	function middl_1($next){
+		// faz o que tiver que fazer
+		// ... ... ... 
+		// executa a próxima
+		$next();
+	}
+	
+	function middl_2($next){
+		// faz o que tiver que fazer
+		// ... ... ... 
+		// executa a próxima
+		$next();
+	}
+	
+	function middl_3($next){
+		// faz o que tiver que fazer
+		// ... ... ... 
+		// executa a próxima
+		$next();
+	}
 
-    $usuarios = new usuariosModel();
-    $usuarios->sp("processaDados",['PARAM0','PARAM1','PARAM2']);
-    $usuarios->prepare_sp();
-    $usuarios->transaction(function($ERROR){die($ERROR);});
-    $usuarios->execQuery();
 
-    $_RESULT = $users->fetch_array();
+	router::group([
+		'prefix'=>'/admin',
+		'middleware'=>['middl_1','middl_2','middl_3']],
+		function(){callback();}
+	);
 
 
-?>
+
 ```
 
-### 2ª - FUNÇÃO MÁGICA 
-
-Você também pode chamar simplesmente adicionando ```sp_ ``` na frente da sua função, 
-que a classe automaticamente entende que essa função é uma Stored Procedure;
-
-Exemplo:
+# REGEX
 
 ```php
 <?php
-    include "vendor\autoload.php";
-    use  App\Models\usuariosModel;
 
-    $usuarios = new usuariosModel();
-	$teste->sp_processaDados('PARAM0','PARAM1','PARAM2');
-	$teste->sp_sobePontos('PARAM0','PARAM1','PARAM2');
-	$teste->prepare_sp();
+	namespace IsraelNogueira\Models;
+	use IsraelNogueira\fastRouter\router;
 
-	$teste->transaction(function($ERROR){die($ERROR);});
-	$teste->execQuery();
+	//-------------------------------------------------------
+	// Variáveis ID e NOME podem ser passadas como parâmetros
+	//-------------------------------------------------------
 
+		router::get('admin/{ID}/{NOME}', function ($ID,$NOME) {});
+	
+	//--------------------------------------------------------------------------------------
+	// No regex, a expressão {idade[0-9]+} é uma expressão regular que define 
+	// um padrão de correspondência de texto que procura por uma string que 
+	// começa com a sequência de caracteres idade, seguida por um ou mais dígitos de 0 a 9.
+	// eo O \d representa qualquer dígito numérico e o sinal de + significa 
+	// que o padrão anterior deve aparecer uma ou mais vezes na string correspondente. 
+	//--------------------------------------------------------------------------------------
+	
+		router::get('admin/{idade:[0-9]+}/{id:\d+}', function ($iddade,$id) {});
+	
+	/*
+	|-----------------------------------------------------------------------------------
+	| NÃO OBRIGATORIEDADE DO PARAMETRO
+	|-----------------------------------------------------------------------------------
+	|
+	|  Caso não queira um parametro obrigatório basta colocar ele nesse formato: [/{param}/] exemplo:
+	|
+	|-----------------------------------------------------------------------------------
+	|*/
+	
+		router::get('admin/{id:\d+}[/{{title}}/]', function ($id,$title) {});
+	
+	/*
+	|-----------------------------------------------------------------------------------
+	| Para parametros não obrigatórios enclosurados
+	|-----------------------------------------------------------------------------------
+	| 
+	| Isso quer dizer que apenas o admin, id e nome são obrigatórios. 
+	| Quanto ao enclousuramento ficará com o formato [/{param}/] com barra no inicio e no fim;  
+	| Enclosurando fica: [/{{nome}}[/{{sobrenome}}/]/]
+	| Para facilitar a visualização será algo mais ou menos assim:
+	| [/ param1 
+	|	[/ param1 
+	|		[/ param1 
+	|			[/ param1 /] 
+	|		/]
+	|	/]
+	| /]
+	-------------------------------------------------------------------------------------
+	*/
+
+		router::post('admin/{id:\d+}[/{{title}}[/{{length}}[/{{last}}/]/]/]', function ($id,$title,$length,$last) {});
+	
 ?>
 ```
 
-## PARÂMTROS IN OUT  
 
-Todo parâmetro que você inserir com ```@``` no início, 
-a classe identifica que é um parâmetro de saída.
 
-```php
-<?php
-    include "vendor\autoload.php";
-    use  App\Models\usuariosModel;
 
-    $usuarios = new usuariosModel();
-	$teste->sp_processaDados('PARAM0','@_NOME','@_EMAIL',25);
-	$teste->sp_sobePontos(637,'@_NOME');
-	$teste->prepare_sp();
 
-	$teste->transaction(function($ERROR){die($ERROR);});
-	$teste->execQuery();
 
-	$_RESULT = $teste->params_sp();
 
-?>
-```
-A variável ```$_RESULT``` representará a seguinte saída:
 
-```json
-    {
-        "processaDados":{
-            "@_NOME":"João da Silva",
-            "@_EMAIL":"joao@gmail.com",
-        },
-        "sobePontos":{
-            "@_NOME2":"João da Silva"
-        }
-    }
-```
 
-## PARÂMTROS IN OUT MAIS SELECTS
 
-Caso a sua Store Procedure possúa algum select interno, 
-será processado como uma query;
 
-```php
-<?php
-    include "vendor\autoload.php";
-    use  App\Models\usuariosModel;
 
-    $usuarios = new usuariosModel();
-	$teste->table("produtos");
-	$teste->limit(1);
-	$teste->prepare_select("LISTA_PRODUTOS");
 
-	$teste->sp_processaDados('PARAM0','@_NOME','@_EMAIL',25);
-	$teste->sp_sobePontos(637,'@_NOME');
-	$teste->prepare_sp();
 
-	$teste->transaction(function($ERROR){die($ERROR);});
-	$teste->execQuery();
-
-    $_RESULT = $users->fetch_array();
-	$_OUTPUT = $teste->params_sp();
-
-?>
-```
-
-Resultará em:
-
-    $_RESULT:
-
-```json
-
-    {
-        "LISTA_PRODUTOS" : [
-                    {
-                        "id": 654,
-                        "nome": "cadeira de madeira",
-                        "valor": 21.5,
-                    },
-                    {
-                        "id": 655,
-                        "nome": "Mesa de plástico",
-                        "valor": 149.9,
-                    }
-                ]
-    }
-```
-    $_OUTPUT:
-
-```json
-    {
-        "processaDados":{
-            "@_NOME":"João da Silva",
-            "@_EMAIL":"joao@gmail.com",
-        },
-        "sobePontos":{
-            "@_NOME2":"João da Silva"
-        }
-    }
-```
 
