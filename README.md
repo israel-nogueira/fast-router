@@ -9,9 +9,9 @@
     <a href="#regex" target="_Self">Regex</a> |
 </p>
 <p align="center">
-    <a href="https://packagist.org/packages/israel-nogueira/galaxy-db"><img src="https://poser.pugx.org/israel-nogueira/galaxy-db/v/stable.svg"></a>
-    <a href="https://packagist.org/packages/israel-nogueira/galaxy-db"><img src="https://poser.pugx.org/israel-nogueira/galaxy-db/downloads"></a>
-    <a href="https://packagist.org/packages/israel-nogueira/galaxy-db"><img src="https://poser.pugx.org/israel-nogueira/galaxy-db/license.svg"></a>
+    <a href="https://packagist.org/packages/israel-nogueira/fast-router"><img src="https://poser.pugx.org/israel-nogueira/fast-router/v/stable.svg"></a>
+    <a href="https://packagist.org/packages/israel-nogueira/fast-router"><img src="https://poser.pugx.org/israel-nogueira/fast-router/downloads"></a>
+    <a href="https://packagist.org/packages/israel-nogueira/fast-router"><img src="https://poser.pugx.org/israel-nogueira/fast-router/license.svg"></a>
   
 </p>
 <p align="center">
