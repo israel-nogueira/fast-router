@@ -338,56 +338,29 @@ namespace IsraelNogueira\fastRouter;
 		|
 		|
 		*/
-			private static function callMiddleware($middlewares, $callback){
-				$middlewares = (!is_array($middlewares))?[$middlewares]:$middlewares;
-				$next = $callback;
-				for ($i = count($middlewares) - 1; $i >= 0; $i--) {
-					$middleware = $middlewares[$i];
-					// Verifica se a middleware é uma função simples
-					if (is_callable($middleware)) {
-						$next = function () use ($middleware, $next) {
-							call_user_func($middleware, $next);
-						};
-					} else {
-						$middleware_parts = explode('@', $middleware);
-						$middleware_class = $middleware_parts[0];
-						$middleware_method = count($middleware_parts) > 1 ? $middleware_parts[1] : 'handle';
 
-						// Verifica se a middleware é de uma classe estática
+			private static function callMiddleware($middlewares, $callback) {
+				$middlewares = (!is_array($middlewares)) ? [$middlewares] : $middlewares;
+				$next = $callback;
+				foreach (array_reverse($middlewares) as $middleware) {
+					if (is_callable($middleware)) {
+						$next = fn() => call_user_func($middleware, $next);
+					} else {
+						[$middleware_class, $middleware_method] = explode('@', $middleware) + [1 => 'handle'];
 						if (is_callable([$middleware_class, $middleware_method])) {
-							$next = function () use ($middleware_class, $middleware_method, $next) {
-								call_user_func([$middleware_class, $middleware_method], $next);
-							};
-						} else {
-							// Verifica se a middleware é de uma classe que está extendendo a nossa classe de rotas
-							if (is_subclass_of($middleware_class, self::class)) {
-								$middleware_instance = new $middleware_class;
-								$next = function () use ($middleware_instance, $middleware_method, $next) {
-									call_user_func([$middleware_instance, $middleware_method], $next);
-								};
-							} else {
-								// Verifica se a middleware é da nossa classe de rotas
-								if (method_exists(self::class, $middleware_method)) {
-									$next = function () use ($middleware_method, $next) {
-										call_user_func([self::class, $middleware_method], $next);
-									};
-								} else {
-									// Verifica se a middleware é de uma classe que estamos extendendo
-									$current_class = get_called_class();
-									if (method_exists($current_class, $middleware_method)) {
-										$next = function () use ($current_class, $middleware_method, $next) {
-											call_user_func([$current_class, $middleware_method], $next);
-										};
-									}
-								}
-							}
+							$next = fn() => call_user_func([$middleware_class, $middleware_method], $next);
+						} elseif (is_subclass_of($middleware_class, self::class)) {
+							$middleware_instance = new $middleware_class;
+							$next = fn() => call_user_func([$middleware_instance, $middleware_method], $next);
+						} elseif (method_exists(static::class, $middleware_method)) {
+							$next = fn() => call_user_func([static::class, $middleware_method], $next);
+						} elseif (method_exists(get_called_class(), $middleware_method)) {
+							$next = fn() => call_user_func([get_called_class(), $middleware_method], $next);
 						}
 					}
 				}
-				// Executa o callback passado como parâmetro
 				$next();
 			}
-
 
 		/*
 		|------------------------------------------------------------------
