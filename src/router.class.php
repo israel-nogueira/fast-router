@@ -46,33 +46,35 @@ namespace IsraelNogueira\fastRouter;
 
 		public static $group_routers 			= [];
 		public static $paramsHandler 			= null;
-
-			
-		public static function __callStatic($name, $arguments){
-
-			if (in_array(strtoupper($name), ['ANY','MATH','GET', 'REDIRECT','POST','RMDIR','MKDIR','INDEX','MOVE','TRACE','DELETE','TRACK','PUT','HEAD','OPTIONS','CONNECT'])) {
-				
-				if(strtoupper($name)=='MATH' && is_array($arguments[0])){
-					$name = $arguments[0];
-					array_shift($arguments);
-				}
-
-				self::send($name,...$arguments);
-
-			} else {
-				self::$name(...$arguments);
-			}
-			exit;
-		}
 		public function __construct(){}
-		
+
+		/*
+		|------------------------------------------------------------------
+		|    __CALLSTATIC
+		|------------------------------------------------------------------
+		*/
+			public static function __callStatic($name, $arguments)
+			{
+				if (in_array(strtoupper($name), ['ANY','MATH','GET', 'REDIRECT','POST','RMDIR','MKDIR','INDEX','MOVE','TRACE','DELETE','TRACK','PUT','HEAD','OPTIONS','CONNECT'])) {
+					if(strtoupper($name)=='MATH' && is_array($arguments[0])){
+						$name = $arguments[0];
+						array_shift($arguments);
+					}
+					self::send($name,...$arguments);
+				} else {
+					self::$name(...$arguments);
+				}
+				exit;
+			}
+
 		/*
 		|------------------------------------------------------------------
 		|    RETORNA A URL
 		|------------------------------------------------------------------
 		*/
 
-			static function urlPath($node = null, $debug = true) {
+			static function urlPath($node = null, $debug = true) 
+			{
 				if (substr($_SERVER['REQUEST_URI'], 0, 1) == '/')
 					$_SERVER['REQUEST_URI'] = substr($_SERVER['REQUEST_URI'], 1, strlen($_SERVER['REQUEST_URI']));
 				if (is_string($node)) {
@@ -107,43 +109,6 @@ namespace IsraelNogueira\fastRouter;
 		|	Criamos o regex que será validado na sequencia 
 		|------------------------------------------------------------------
 		*/
-			public function generate($routeName, array $params = [])
-				{
-
-					// Check if named route exists
-					if (!isset($this->namedRoutes[$routeName])) {
-						throw new RuntimeException("Route '{$routeName}' does not exist.");
-					}
-
-					// Replace named parameters
-					$route = $this->namedRoutes[$routeName];
-
-					// prepend base path to route url again
-					$url = $this->basePath . $route;
-
-					if (preg_match_all('`(/|\.|)\[([^:\]]*+)(?::([^:\]]*+))?\](\?|)`', $route, $matches, PREG_SET_ORDER)) {
-						foreach ($matches as $index => $match) {
-							list($block, $pre, $type, $param, $optional) = $match;
-
-							if ($pre) {
-								$block = substr($block, 1);
-							}
-
-							if (isset($params[$param])) {
-								// Part is found, replace for param value
-								$url = str_replace($block, $params[$param], $url);
-							} elseif ($optional && $index !== 0) {
-								// Only strip preceding slash if it's not at the base
-								$url = str_replace($pre . $block, '', $url);
-							} else {
-								// Strip match block
-								$url = str_replace($block, '', $url);
-							}
-						}
-					}
-
-					return $url;
-				}
 			public static function gerarRegex( $rota ){
 				$rota             = str_replace( ["{","}"], ["｛", "｝"], $rota );
 				$regex_parametros = "/｛(?'chamada'((((((?'parametro'([a-z0-9\_,]+))\:)?(?'valor'([^｛｝]+))))|(?R))*))｝/";
@@ -176,7 +141,9 @@ namespace IsraelNogueira\fastRouter;
 		|	Tratamos os parâmetros da rota 
 		|-------------------------------------------------------------------
 		*/
-			public function formatParamsRoute( $match ){
+
+			public function formatParamsRoute( $match )
+			{
 				$novo = $match[0];
 				$novo = str_replace( ["｛","｝"], ["(",")"], $novo );
 				if( isset( $match['parametro'] ) && !empty( $match['parametro'] ) ){
@@ -195,9 +162,10 @@ namespace IsraelNogueira\fastRouter;
 		|    caso a URL esteja correta e dentro do que espera-se
 		|-------------------------------------------------------------------
 		*/
-			static public function parametrosRota($_ROTA,$FAKE_ROUTE=NULL){
-				$_REGEX = self::gerarRegex(trim($_ROTA,'/'));
 
+			static public function parametrosRota($_ROTA,$FAKE_ROUTE=NULL)
+			{
+				$_REGEX = self::gerarRegex(trim($_ROTA,'/'));
 				if (preg_match($_REGEX, ($FAKE_ROUTE??self::urlPath()), $resultado)) {
 					foreach ($resultado as $k => $_VALOR) {
 						if (is_numeric($k)) {
@@ -240,7 +208,9 @@ namespace IsraelNogueira\fastRouter;
 		|
 		|
 		*/
-			public function filterParameters($_PARAMS){		
+
+			public function filterParameters($_PARAMS)
+			{
 				if ($_SERVER['REQUEST_METHOD'] == 'PUT') {
 					parse_str(file_get_contents("php://input"), $_PUT);
 					foreach ($_PUT as $key => $value) {
@@ -266,7 +236,9 @@ namespace IsraelNogueira\fastRouter;
 		|
 		|
 		*/
-			public function requireParameters($_PARAMS,$_ERROR=null){
+
+			public function requireParameters($_PARAMS,$_ERROR=null)
+			{
 				if(is_array($_PARAMS) && count($_PARAMS)>0){
 					if ($_SERVER['REQUEST_METHOD'] == 'GET')	{$_PARAMETROS = array_intersect_key($_GET,array_flip($_PARAMS));}
 					if ($_SERVER['REQUEST_METHOD'] == 'POST')	{$_PARAMETROS = array_intersect_key($_POST,array_flip($_PARAMS));}
@@ -298,7 +270,9 @@ namespace IsraelNogueira\fastRouter;
 		|
 		|
 		*/
-			public function function($_FUNCTIONS=null,$_ERRO=null){
+
+			public function function($_FUNCTIONS=null,$_ERRO=null)
+			{
 				$_FUNCTIONS= (is_string($_FUNCTIONS) && !is_numeric($_FUNCTIONS) ) ? [$_FUNCTIONS] : ((is_array($_FUNCTIONS))? $_FUNCTIONS : null);
 				if (count($_FUNCTIONS)>0) {
 					if (isset($_REQUEST['function']) && !in_array($_REQUEST['function'], $_FUNCTIONS)) {
@@ -320,14 +294,15 @@ namespace IsraelNogueira\fastRouter;
 		|
 		|
 		*/
-			public static function route($_ROTA,$FAKE_ROUTE=NULL){
+
+			public static function route($_ROTA,$FAKE_ROUTE=NULL)
+			{
 					$full_route = "";
 					foreach (self::$group_routers as $group) {
 						$full_route .= $group['route'] . '/';
 					}
 					$full_route .= $_ROTA;
 				self::$paramsHandler = self::parametrosRota($full_route, $FAKE_ROUTE);
-
 				return new static;
 			}
 
@@ -339,7 +314,8 @@ namespace IsraelNogueira\fastRouter;
 		|
 		*/
 
-			private static function callMiddleware($middlewares, $callback) {
+			private static function callMiddleware($middlewares, $callback) 
+			{
 				$middlewares = (!is_array($middlewares)) ? [$middlewares] : $middlewares;
 				$next = $callback;
 				foreach (array_reverse($middlewares) as $middleware) {
@@ -369,7 +345,9 @@ namespace IsraelNogueira\fastRouter;
 		|
 		|
 		*/
-			public static function group($_ROTA, $_ROUTERS=NULL){
+
+			public static function group($_ROTA, $_ROUTERS=NULL)
+			{
 				if(is_array($_ROTA)){
 					if(isset($_ROTA['middleware'])){
 						self::callMiddleware($_ROTA['middleware'], function()use($_ROUTERS){
@@ -406,7 +384,9 @@ namespace IsraelNogueira\fastRouter;
 		|
 		|
 		*/
-			public function verify($_VAR,$_RETORNO){
+
+			public function verify($_VAR,$_RETORNO)
+			{
 				if($_VAR==false){
 					if (is_callable($_RETORNO)) {
 						$_RETORNO($_VAR);
@@ -430,7 +410,8 @@ namespace IsraelNogueira\fastRouter;
 		|
 		*/
 
-			public static function send($_REQUEST_METHOD="GET",$_PATH=null,$_SUCESS=null, $_ERROR=null){
+			public static function send($_REQUEST_METHOD="GET",$_PATH=null,$_SUCESS=null, $_ERROR=null)
+			{
 				self::route($_PATH);
 				return self::request($_REQUEST_METHOD,$_SUCESS,$_ERROR);
 			}
@@ -445,12 +426,10 @@ namespace IsraelNogueira\fastRouter;
 		|   Parametros: (string, function, function)  
 		|
 		*/
-			public static function request($_REQUEST_METHOD=null,$_SUCESS=null,$_ERROR=null){
+
+			public static function request($_REQUEST_METHOD=null,$_SUCESS=null,$_ERROR=null)
+			{
 				if(self::$paramsHandler['status']==true){
-					
-
-
-
 					$REQ1 = (!is_array($_REQUEST_METHOD))?[strtoupper(trim($_REQUEST_METHOD))]:$_REQUEST_METHOD;
 					$REQ2 = strtoupper(trim($_SERVER['REQUEST_METHOD']));
 					
@@ -470,6 +449,7 @@ namespace IsraelNogueira\fastRouter;
 					}
 				}
 			}
+
 	}
 
 
