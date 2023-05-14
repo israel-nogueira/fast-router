@@ -71,7 +71,7 @@ Aqui segue um exemplo de uma aplicação simples da classe
 	//  math aceitará os métodos listados na array 
 	//-------------------------------------------------------------------------------
 	
-	router::math(['POST','GET'],'admin/path1/path2', function () {});
+		router::math(['POST','GET'],'admin/path1/path2', function () {});
 	
 	
 ?>
@@ -226,7 +226,7 @@ Cada função é definida de maneira que a próxima é executada apenas se a atu
 	-------------------------------------------------------------------------------------
 	*/
 
-	router::post('admin/{id:\d+}[/{{title}}[/{{length}}[/{{last}}/]/]/]', function ($id,$title,$length,$last) {});
+		router::post('admin/{id:\d+}[/{{title}}[/{{length}}[/{{last}}/]/]/]', function ($id,$title,$length,$last) {});
 	
 ?>
 ```
