@@ -50,10 +50,10 @@ Aqui segue um exemplo de uma aplicação simples da classe
 	// No modo estático a requisição é direto no método
 	//-------------------------------------------------------------------------------
 
-		router::get	('admin/path1/path2', function () {});
-		router::post	('admin/path1/path2', function () {});
-		router::put	('admin/path1/path2', function () {});
-		router::delete	('admin/path1/path2', function () {});
+		router::get('admin/path1/path2', function () {});
+		router::post('admin/path1/path2', function () {});
+		router::put('admin/path1/path2', function () {});
+		router::delete('admin/path1/path2', function () {});
 	
 	//-------------------------------------------------------------------------------
 	// O método "any" aceita qualquer tipo de requisição
@@ -183,7 +183,7 @@ Cada função é definida de maneira que a próxima é executada apenas se a atu
 	// Variáveis ID e NOME podem ser passadas como parâmetros
 	//-------------------------------------------------------
 
-		router::get	('admin/{ID}/{NOME}', function ($ID,$NOME) {});
+		router::get('admin/{ID}/{NOME}', function ($ID,$NOME) {});
 	
 	//--------------------------------------------------------------------------------------
 	// No regex, a expressão {idade[0-9]+} é uma expressão regular que define 
@@ -193,7 +193,7 @@ Cada função é definida de maneira que a próxima é executada apenas se a atu
 	// que o padrão anterior deve aparecer uma ou mais vezes na string correspondente. 
 	//--------------------------------------------------------------------------------------
 	
-		router::get	('admin/{idade:[0-9]+}/{id:\d+}', function ($iddade,$id) {});
+		router::get('admin/{idade:[0-9]+}/{id:\d+}', function ($iddade,$id) {});
 	
 	/*
 	|-----------------------------------------------------------------------------------
@@ -205,7 +205,7 @@ Cada função é definida de maneira que a próxima é executada apenas se a atu
 	|-----------------------------------------------------------------------------------
 	|*/
 	
-		router::get	('admin/{id:\d+}[/{{title}}/]', function ($id,$title) {});
+		router::get('admin/{id:\d+}[/{{title}}/]', function ($id,$title) {});
 	
 	/*
 	|-----------------------------------------------------------------------------------
@@ -226,7 +226,7 @@ Cada função é definida de maneira que a próxima é executada apenas se a atu
 	-------------------------------------------------------------------------------------
 	*/
 
-	router::post	('admin/{id:\d+}[/{{title}}[/{{length}}[/{{last}}/]/]/]', function ($id,$title,$length,$last) {});
+	router::post('admin/{id:\d+}[/{{title}}[/{{length}}[/{{last}}/]/]/]', function ($id,$title,$length,$last) {});
 	
 ?>
 ```
