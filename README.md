@@ -3,9 +3,10 @@
 </p>
 <p align="center">
     <a href="#instalação" target="_Self">Instalação</a> |
-    <a href="#configurando-a-base" target="_Self">Config a base</a> |
-    <a href="#snippets-para-vscode" target="_Self">Snippets</a> |
-    <a href="#criando-models" target="_Self">Models</a> |
+    <a href="#primeiros-passos" target="_Self">Primeiros passos</a> |
+    <a href="#agrupamentos" target="_Self">Agrupamentos</a> |
+    <a href="#middlewares" target="_Self">Middlewares</a> |
+    <a href="#regex" target="_Self">Regex</a> |
 </p>
 <p align="center">
     <a href="https://packagist.org/packages/israel-nogueira/galaxy-db"><img src="https://poser.pugx.org/israel-nogueira/galaxy-db/v/stable.svg"></a>
