@@ -3,46 +3,17 @@
 namespace IsraelNogueira\fastRouter;
 /**
  * -------------------------------------------------------------------------
+ * 
  *		@author Israel Nogueira <israel@feats.com>
  *		@package library
  *		@license GPL-3.0-or-later
  *		@copyright 2023 Israel Nogueira
  *		@link https://github.com/israel-nogueira/fast-router
- * -------------------------------------------------------------------------
- * 
- * 		Classe fastRouter para rotas: 
- * 		Uma classe extremamnte simples para gerenciamento de rotas
- * 		com controle de request, verificações de parametros
- * 		e aninhamento de rotas
- * 
+ *
  * -------------------------------------------------------------------------
  */
 
-/*
-	function([],function($ERRO){}) 				//	['app:fn1','app:fn2','app:fn3'] se nao existe a function gera erro
-	->filterParameters([])						//	['a','b','c'] Filtra o param e deixa passar apenas esses
-	->requireParameters([],function(){})		//	['a','b','c'] exige o param, se não tiver barra
-	->verify(function(){}, function(){})		//	@param1 é uma FN q retorna true|false, @param2 function de erro 
-	
-	->any('/path1/{{ID}}/{{NOME}}',function($SUCCESS){},function($ERROR){})
-	->get('/path1/{{ID}}/{{NOME}}',function($SUCCESS){},function($ERROR){})
-	->post('/path1/{{ID}}/{{NOME}}',function($SUCCESS){},function($ERROR){})
-	->put('/path1/{{ID}}/{{NOME}}',function($SUCCESS){},function($ERROR){})
-	
-	
-	router::group('/path1',function($SUCCESS){
-
-	})
-	router::group(['prefix'=>'/path1','middleware'=>[fn,fn,fn]],function(){
-
-	})
-	
-
-*/
-
-
 	class router{
-
 
 		public static $group_routers 			= [];
 		public static $paramsHandler 			= null;
