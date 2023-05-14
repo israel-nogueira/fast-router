@@ -26,18 +26,6 @@ Instale via composer.
     composer require israel-nogueira/fast-router
 ```
 
-Acrescente o PSR-4 em seu composer.json
-
-```json
-	{
-	    "autoload": {
-		"psr-4": {
-		    "IsraelNogueira\\fastRouter\\": "src/"
-		}
-	    }
-	}
-```
-
 ## PRIMEIROS PASSOS
 
 Basta importar o autoload e inserir o namespace
