@@ -311,24 +311,39 @@ namespace IsraelNogueira\fastRouter;
 
 		/*
 		|------------------------------------------------------------------
-		|	GROUPS
+		|	VERIFICA SE O GRUPO ESTÁ OK
 		|-------------------------------------------------------------------
 		|
 		|
 		*/
 
-			public static function group($_ROTA, $_ROUTERS=NULL)
+			public static function verifyGroup($_GRUPO){
+				$MODELO 		=	trim($_GRUPO, '/');
+				$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9\/]+$/', $MODELO);
+				$GRUPO_STRING	=	implode('/',self::$group_routers);
+				$GRUPO_ARRAY	=	explode('/',$GRUPO_STRING);
+				$URL_BROWSER	=	explode('/',trim(self::urlPath(), '/'));
+				$COUNT			=	count($GRUPO_ARRAY);
+				$RANGE1 		=	array_slice($GRUPO_ARRAY,0,$COUNT);
+				$RANGE2 		=	array_slice($URL_BROWSER,0,$COUNT);
+				return ($MODEL_VALIDO && $RANGE1==$RANGE2);
+			}
+
+		/*
+		|------------------------------------------------------------------
+		|	APLICA O GRUPO E SEUS MIDDLEWARES
+		|-------------------------------------------------------------------
+		|
+		|
+		*/
+			public static function group($_GRUPO, $_ROUTERS=NULL)
 			{
-				if(is_array($_ROTA)){
-					if(isset($_ROTA['prefix'])){
-						array_push(self::$group_routers, $_ROTA['prefix']);
-						$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9\/]+$/', $_ROTA['prefix']);
-						$COUNT			=	count(self::$group_routers);
-						$URL_BROWSER	=	explode('/',trim(self::urlPath(), '/'));
-						$RANGE 			=	array_splice($URL_BROWSER,0,$COUNT);
-						if($MODEL_VALIDO && self::$group_routers==$RANGE){
-							if(isset($_ROTA['middleware'])){
-								self::callMiddleware($_ROTA['middleware'], function()use($_ROUTERS){
+				if(is_array($_GRUPO)){
+					if(isset($_GRUPO['prefix'])){
+						array_push(self::$group_routers, $_GRUPO['prefix']);
+						if(self::verifyGroup($_GRUPO['prefix'])){
+							if(isset($_GRUPO['middleware'])){
+								self::callMiddleware($_GRUPO['middleware'], function()use($_ROUTERS){
 									if (is_callable($_ROUTERS)) {
 										$_ROUTERS();
 										array_pop(self::$group_routers);
@@ -347,12 +362,8 @@ namespace IsraelNogueira\fastRouter;
 						}
 					}
 				}else{
-					array_push(self::$group_routers, $_ROTA);
-					$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9\/]+$/', $_ROTA);
-					$COUNT			=	count(self::$group_routers);
-					$URL_BROWSER	=	explode('/',trim(self::urlPath(), '/'));
-					$RANGE 			=	array_splice($URL_BROWSER,0,$COUNT);
-					if($MODEL_VALIDO && self::$group_routers==$RANGE){
+					array_push(self::$group_routers, $_GRUPO);
+					if(self::verifyGroup($_GRUPO)){
 						if (is_callable($_ROUTERS)) {
 							$_ROUTERS();
 							array_pop(self::$group_routers);
@@ -364,7 +375,8 @@ namespace IsraelNogueira\fastRouter;
 
 				}
 			}
-	
+
+			
 
 
 		/*
