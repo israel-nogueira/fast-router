@@ -319,36 +319,34 @@ namespace IsraelNogueira\fastRouter;
 
 			public static function group($_ROTA, $_ROUTERS=NULL)
 			{
-
-
 				if(is_array($_ROTA)){
-					if(isset($_ROTA['middleware'])){
-						self::callMiddleware($_ROTA['middleware'], function()use($_ROUTERS){
-								if(isset($_ROTA['prefix'])){
-										array_push(self::$group_routers, $_ROTA['prefix']);
-										$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9\/]+$/', $_ROTA['prefix']);
-										$COUNT			=	count(self::$group_routers);
-										$URL_BROWSER	=	explode('/',trim(self::urlPath(), '/'));
-										$RANGE 			=	array_splice($URL_BROWSER,0,$COUNT);
-										if($MODEL_VALIDO && self::$group_routers==$RANGE){
-											if (is_callable($_ROUTERS)) {
-												$_ROUTERS();
-												array_pop(self::$group_routers);
-												return new static;
-											}
-										}else{
-											return new static;
-										}
-								}else{
+					if(isset($_ROTA['prefix'])){
+						array_push(self::$group_routers, $_ROTA['prefix']);
+						$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9\/]+$/', $_ROTA['prefix']);
+						$COUNT			=	count(self::$group_routers);
+						$URL_BROWSER	=	explode('/',trim(self::urlPath(), '/'));
+						$RANGE 			=	array_splice($URL_BROWSER,0,$COUNT);
+						if($MODEL_VALIDO && self::$group_routers==$RANGE){
+							if(isset($_ROTA['middleware'])){
+								self::callMiddleware($_ROTA['middleware'], function()use($_ROUTERS){
 									if (is_callable($_ROUTERS)) {
 										$_ROUTERS();
+										array_pop(self::$group_routers);
 										return new static;
 									}
+								});
+							}else{
+								if (is_callable($_ROUTERS)) {
+									$_ROUTERS();
+									array_pop(self::$group_routers);
+									return new static;
 								}
-						});
+							}
+						}else{
+							return new static;
+						}
 					}
 				}else{
-
 					array_push(self::$group_routers, $_ROTA);
 					$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9\/]+$/', $_ROTA);
 					$COUNT			=	count(self::$group_routers);
@@ -366,6 +364,7 @@ namespace IsraelNogueira\fastRouter;
 
 				}
 			}
+	
 
 
 		/*
