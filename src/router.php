@@ -270,7 +270,7 @@ namespace IsraelNogueira\fastRouter;
 			{
 					$full_route = "";
 					foreach (self::$group_routers as $group) {
-						$full_route .= $group['route'] . '/';
+						$full_route .= $group . '/';
 					}
 					$full_route .= $_ROTA;
 				self::$paramsHandler = self::parametrosRota($full_route, $FAKE_ROUTE);
@@ -319,33 +319,48 @@ namespace IsraelNogueira\fastRouter;
 
 			public static function group($_ROTA, $_ROUTERS=NULL)
 			{
+
+
 				if(is_array($_ROTA)){
 					if(isset($_ROTA['middleware'])){
 						self::callMiddleware($_ROTA['middleware'], function()use($_ROUTERS){
-							if(isset($_ROTA['prefix'])){
-								array_push(self::$group_routers, array('route' => $_ROTA['prefix'], 'routers' => array()));
-								if (is_callable($_ROUTERS)) {
-									$_ROUTERS();
-									array_pop(self::$group_routers);
-									return new static;
+								if(isset($_ROTA['prefix'])){
+									array_push(self::$group_routers, $_ROTA['prefix']);
+									$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9\/]+$/', $_ROTA['prefix']);
+									$URL_MODEL 		=	implode('/',self::$group_routers);
+									$URL_BROWSER	=	trim(self::urlPath(), '/');
+									if($MODEL_VALIDO && $URL_MODEL == substr($URL_BROWSER, 0,strlen($URL_MODEL))){
+										if (is_callable($_ROUTERS)) {
+											$_ROUTERS();
+											array_pop(self::$group_routers);
+											return new static;
+										}
+									}
+								}else{
+									if (is_callable($_ROUTERS)) {
+										$_ROUTERS();
+										return new static;
+									}
 								}
-							}else{
-								if (is_callable($_ROUTERS)) {
-									$_ROUTERS();
-									return new static;
-								}
-							}
 						});
 					}
 				}else{
-					array_push(self::$group_routers, array('route' => $_ROTA, 'routers' => array()));
-					if (is_callable($_ROUTERS)) {
-						$_ROUTERS();
-						array_pop(self::$group_routers);
-						return new static;
+
+					array_push(self::$group_routers, $_ROTA);
+					$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9\/]+$/', $_ROTA);
+					$URL_MODEL 		=	implode('/',self::$group_routers);
+					$URL_BROWSER	=	trim(self::urlPath(), '/');
+					 if($MODEL_VALIDO && $URL_MODEL == substr($URL_BROWSER, 0,strlen($URL_MODEL))){
+						if (is_callable($_ROUTERS)) {
+							$_ROUTERS();
+							array_pop(self::$group_routers);
+							return new static;
+						}
 					}
+
 				}
 			}
+
 
 		/*
 		|------------------------------------------------------------------

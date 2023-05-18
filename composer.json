@@ -26,8 +26,5 @@
         "psr-4": {
             "IsraelNogueira\\fastRouter\\": "src"
         }
-    },
-    "extra": {
-        "composer-exit-class": "IsraelNogueira\\FastRouter\\ComposerInstaller"
     }
 }
