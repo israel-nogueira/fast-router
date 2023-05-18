@@ -325,17 +325,20 @@ namespace IsraelNogueira\fastRouter;
 					if(isset($_ROTA['middleware'])){
 						self::callMiddleware($_ROTA['middleware'], function()use($_ROUTERS){
 								if(isset($_ROTA['prefix'])){
-									array_push(self::$group_routers, $_ROTA['prefix']);
-									$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9\/]+$/', $_ROTA['prefix']);
-									$URL_MODEL 		=	implode('/',self::$group_routers);
-									$URL_BROWSER	=	trim(self::urlPath(), '/');
-									if($MODEL_VALIDO && $URL_MODEL == substr($URL_BROWSER, 0,strlen($URL_MODEL))){
-										if (is_callable($_ROUTERS)) {
-											$_ROUTERS();
-											array_pop(self::$group_routers);
+										array_push(self::$group_routers, $_ROTA['prefix']);
+										$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9\/]+$/', $_ROTA['prefix']);
+										$COUNT			=	count(self::$group_routers);
+										$URL_BROWSER	=	explode('/',trim(self::urlPath(), '/'));
+										$RANGE 			=	array_splice($URL_BROWSER,0,$COUNT);
+										if($MODEL_VALIDO && self::$group_routers==$RANGE){
+											if (is_callable($_ROUTERS)) {
+												$_ROUTERS();
+												array_pop(self::$group_routers);
+												return new static;
+											}
+										}else{
 											return new static;
 										}
-									}
 								}else{
 									if (is_callable($_ROUTERS)) {
 										$_ROUTERS();
@@ -348,14 +351,17 @@ namespace IsraelNogueira\fastRouter;
 
 					array_push(self::$group_routers, $_ROTA);
 					$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9\/]+$/', $_ROTA);
-					$URL_MODEL 		=	implode('/',self::$group_routers);
-					$URL_BROWSER	=	trim(self::urlPath(), '/');
-					 if($MODEL_VALIDO && $URL_MODEL == substr($URL_BROWSER, 0,strlen($URL_MODEL))){
+					$COUNT			=	count(self::$group_routers);
+					$URL_BROWSER	=	explode('/',trim(self::urlPath(), '/'));
+					$RANGE 			=	array_splice($URL_BROWSER,0,$COUNT);
+					if($MODEL_VALIDO && self::$group_routers==$RANGE){
 						if (is_callable($_ROUTERS)) {
 							$_ROUTERS();
 							array_pop(self::$group_routers);
 							return new static;
 						}
+					}else{
+						return new static;
 					}
 
 				}
