@@ -72,7 +72,57 @@ namespace IsraelNogueira\fastRouter;
 					}
 				}
 			}
-		
+
+		/*
+		|------------------------------------------------------------------
+		|	EXECUTA FUNÇÕES 
+		|------------------------------------------------------------------
+		|	Aqui, qualquer função, classe, método passado será executado
+		|------------------------------------------------------------------
+		*/
+			public static function execFn($function, ...$parameters) {
+				if (is_callable($function)) {
+					// Verifica se é uma função ou método estático
+					if (is_string($function)) {
+						// Verifica se é uma função global
+						if (function_exists($function)) {
+							return call_user_func_array($function, $parameters);
+						} else {
+							// Verifica se é um método estático de classe
+							if (strpos($function, '::') !== false) {
+								list($class, $method) = explode('::', $function);
+								if (class_exists($class) && method_exists($class, $method)) {
+									return call_user_func_array($function, $parameters);
+								}
+							}
+						}
+					} elseif (is_array($function) && count($function) == 2) {
+						// Verifica se é um método de objeto
+						list($object, $method) = $function;
+						if (is_object($object) && method_exists($object, $method)) {
+							return call_user_func_array([$object, $method], $parameters);
+						}
+					}
+				} elseif (is_string($function) && strpos($function, '@') !== false) {
+					// Verifica se é uma string com "@" para chamar uma função de classe
+					list($class, $method) = explode('@', $function);
+					if (class_exists($class) && method_exists($class, $method)) {
+						$object = new $class();
+						return call_user_func_array([$object, $method], $parameters);
+					}
+				} elseif (is_string($function) && strpos($function, '\\') !== false) {
+					// Verifica se é uma string com "\\" para chamar uma função de namespace
+					if (function_exists($function)) {
+						return call_user_func_array($function, $parameters);
+					}
+				}
+				// throw new Exception('Function or method not found');
+			}
+
+
+
+
+
 		/*
 		|------------------------------------------------------------------
 		|	CRIA O REGEX 
@@ -222,10 +272,8 @@ namespace IsraelNogueira\fastRouter;
 						$_PARAMETROS = array_intersect_key(($_PUT??[]),array_flip($_PARAMS));
 					}
 					if(array_keys($_PARAMETROS)!=$_PARAMS){
-						if (is_callable($_ERROR)) {
-							$_ERROR('PARÂMETROS INVÁLIDOS');
-						} 
-					}
+						self::execFn($_ERROR,'PARÂMETROS INVÁLIDOS');
+					} 
 				}
 				return $this;
 			}
@@ -311,7 +359,7 @@ namespace IsraelNogueira\fastRouter;
 
 		/*
 		|------------------------------------------------------------------
-		|	VERIFICA SE O GRUPO ESTÁ OK
+		|	GROUPS
 		|-------------------------------------------------------------------
 		|
 		|
@@ -328,20 +376,15 @@ namespace IsraelNogueira\fastRouter;
 				$RANGE2 		=	array_slice($URL_BROWSER,0,$COUNT);
 				return ($MODEL_VALIDO && $RANGE1==$RANGE2);
 			}
-
-		/*
-		|------------------------------------------------------------------
-		|	APLICA O GRUPO E SEUS MIDDLEWARES
-		|-------------------------------------------------------------------
-		|
-		|
-		*/
 			public static function group($_GRUPO, $_ROUTERS=NULL)
 			{
 				if(is_array($_GRUPO)){
 					if(isset($_GRUPO['prefix'])){
+
 						array_push(self::$group_routers, $_GRUPO['prefix']);
+
 						if(self::verifyGroup($_GRUPO['prefix'])){
+
 							if(isset($_GRUPO['middleware'])){
 								self::callMiddleware($_GRUPO['middleware'], function()use($_ROUTERS){
 									if (is_callable($_ROUTERS)) {
@@ -437,14 +480,11 @@ namespace IsraelNogueira\fastRouter;
 					$REQ2 = strtoupper(trim($_SERVER['REQUEST_METHOD']));
 					
 					if(  in_array($REQ2,$REQ1 ) ||  $REQ1[0]=='ANY'	){
-						
 						$_PARAMS = array_values(self::$paramsHandler['params']);
-						if (is_callable($_SUCESS)) { 
-							$_SUCESS(...$_PARAMS);
-						}
+						self::execFn($_SUCESS, ...$_PARAMS);
 					}else{
 						if (is_callable($_ERROR)) {
-							$_ERROR('ILEGAL REQUEST_METHOD: '.trim($REQ2));
+							self::execFn($_ERROR,'ILEGAL REQUEST_METHOD: '.trim($REQ2));
 						}else{
 							http_response_code(403);
 							die('ILEGAL REQUEST_METHOD '.trim($REQ2));
