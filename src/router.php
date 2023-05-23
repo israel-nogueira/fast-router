@@ -12,7 +12,6 @@ namespace IsraelNogueira\fastRouter;
  *
  * -------------------------------------------------------------------------
  */
-
 	class router{
 
 		public static $group_routers 			= [];
@@ -80,7 +79,9 @@ namespace IsraelNogueira\fastRouter;
 		|	Aqui, qualquer função, classe, método passado será executado
 		|------------------------------------------------------------------
 		*/
-			public static function execFn($function, ...$parameters) {
+
+			public static function execFn($function, ...$parameters)
+			{	
 				if (is_callable($function)) {
 					// Verifica se é uma função ou método estático
 					if (is_string($function)) {
@@ -102,6 +103,8 @@ namespace IsraelNogueira\fastRouter;
 						if (is_object($object) && method_exists($object, $method)) {
 							return call_user_func_array([$object, $method], $parameters);
 						}
+					} else {
+						$function($parameters);
 					}
 				} elseif (is_string($function) && strpos($function, '@') !== false) {
 					// Verifica se é uma string com "@" para chamar uma função de classe
@@ -109,6 +112,20 @@ namespace IsraelNogueira\fastRouter;
 					if (class_exists($class) && method_exists($class, $method)) {
 						$object = new $class();
 						return call_user_func_array([$object, $method], $parameters);
+					} else {
+						// Verifica se a classe foi declarada antes de utilizar o autoload
+						if (!class_exists($class)) {
+							spl_autoload_register(function ($class) {
+								$classFile = str_replace('\\', '/', $class) . '.php';
+								if (file_exists($classFile)) {
+									require_once $classFile;
+								}
+							});
+							if (class_exists($class) && method_exists($class, $method)) {
+								$object = new $class();
+								return call_user_func_array([$object, $method], $parameters);
+							}
+						}
 					}
 				} elseif (is_string($function) && strpos($function, '\\') !== false) {
 					// Verifica se é uma string com "\\" para chamar uma função de namespace
@@ -118,7 +135,6 @@ namespace IsraelNogueira\fastRouter;
 				}
 				// throw new Exception('Function or method not found');
 			}
-
 
 
 
@@ -357,6 +373,12 @@ namespace IsraelNogueira\fastRouter;
 				$next();
 			}
 
+			
+
+
+
+
+
 		/*
 		|------------------------------------------------------------------
 		|	GROUPS
@@ -476,12 +498,27 @@ namespace IsraelNogueira\fastRouter;
 			public static function request($_REQUEST_METHOD=null,$_SUCESS=null,$_ERROR=null)
 			{
 				if(self::$paramsHandler['status']==true){
+
+					$PARAMS_URL = array_values(self::$paramsHandler['params']);
+
+					if(is_array($_SUCESS)){
+						$_CALLBACK = $_SUCESS[0];
+						array_shift($_SUCESS);
+						if(count($_SUCESS)>0){
+								$_PARAMS = [...$PARAMS_URL, ...$_SUCESS];  
+						}else{
+							$_PARAMS	= $PARAMS_URL;
+						}
+					}else{
+						$_PARAMS	= $PARAMS_URL;
+						$_CALLBACK	= $_SUCESS;
+					}
+					
 					$REQ1 = (!is_array($_REQUEST_METHOD))?[strtoupper(trim($_REQUEST_METHOD))]:$_REQUEST_METHOD;
 					$REQ2 = strtoupper(trim($_SERVER['REQUEST_METHOD']));
 					
 					if(  in_array($REQ2,$REQ1 ) ||  $REQ1[0]=='ANY'	){
-						$_PARAMS = array_values(self::$paramsHandler['params']);
-						self::execFn($_SUCESS, ...$_PARAMS);
+						self::execFn($_CALLBACK, ...$_PARAMS);
 					}else{
 						if (is_callable($_ERROR)) {
 							self::execFn($_ERROR,'ILEGAL REQUEST_METHOD: '.trim($REQ2));
