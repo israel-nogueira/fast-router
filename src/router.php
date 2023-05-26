@@ -348,40 +348,45 @@ namespace IsraelNogueira\fastRouter;
 		|
 		|
 		*/
-
-			private static function callMiddleware($middlewares, $callback) 
-			{
-				$middlewares = (!is_array($middlewares)) ? [$middlewares] : $middlewares;
-				$next = $callback;
-				foreach (array_reverse($middlewares) as $middleware) {
-					if (is_callable($middleware)) {
-						$next = fn() => call_user_func($middleware, $next);
-					} else {
-						[$middleware_class, $middleware_method] = explode('@', $middleware) + [1 => 'handle'];
-						if (is_callable([$middleware_class, $middleware_method])) {
-							$next = fn() => call_user_func([$middleware_class, $middleware_method], $next);
-						} elseif (is_subclass_of($middleware_class, self::class)) {
-							$middleware_instance = new $middleware_class;
-							$next = fn() => call_user_func([$middleware_instance, $middleware_method], $next);
-						} elseif (method_exists(static::class, $middleware_method)) {
-							$next = fn() => call_user_func([static::class, $middleware_method], $next);
-						} elseif (method_exists(get_called_class(), $middleware_method)) {
-							$next = fn() => call_user_func([get_called_class(), $middleware_method], $next);
-						}
+		private static function callMiddleware($middlewares, $callback)
+		{
+			$middlewares = (!is_array($middlewares)) ? [$middlewares] : $middlewares;
+			$next = $callback;
+			foreach (array_reverse($middlewares) as $middleware) {
+				if (is_callable($middleware)) {
+					$next = function ($return) use ($middleware, $next) {
+						return call_user_func($middleware, $return, $next);
+					};
+				} else {
+					[$middleware_class, $middleware_method] = explode('@', $middleware) + [1 => 'handle'];
+					if (is_callable([$middleware_class, $middleware_method])) {
+						$next = function ($return) use ($middleware_class, $middleware_method, $next) {
+							return call_user_func([$middleware_class, $middleware_method], $return, $next);
+						};
+					} elseif (is_subclass_of($middleware_class, self::class)) {
+						$middleware_instance = new $middleware_class;
+						$next = function ($return) use ($middleware_instance, $middleware_method, $next) {
+							return call_user_func([$middleware_instance, $middleware_method], $return, $next);
+						};
+					} elseif (method_exists(static::class, $middleware_method)) {
+						$next = function ($return) use ($middleware_method, $next) {
+							return call_user_func([static::class, $middleware_method], $return, $next);
+						};
+					} elseif (method_exists(get_called_class(), $middleware_method)) {
+						$next = function ($return) use ($middleware_method, $next) {
+							return call_user_func([get_called_class(), $middleware_method], $return, $next);
+						};
 					}
 				}
-				$next();
 			}
-
-			
-
-
+			$next([]);
+		}
 
 
 
 		/*
 		|------------------------------------------------------------------
-		|	GROUPS
+		|	COMPARA AS URLS PARA VER SE BATE COM O GRUPO
 		|-------------------------------------------------------------------
 		|
 		|
@@ -396,53 +401,59 @@ namespace IsraelNogueira\fastRouter;
 				$COUNT			=	count($GRUPO_ARRAY);
 				$RANGE1 		=	array_slice($GRUPO_ARRAY,0,$COUNT);
 				$RANGE2 		=	array_slice($URL_BROWSER,0,$COUNT);
+
 				return ($MODEL_VALIDO && $RANGE1==$RANGE2);
 			}
-			public static function group($_GRUPO, $_ROUTERS=NULL)
+
+		/*
+		|------------------------------------------------------------------
+		|	GROUPS
+		|-------------------------------------------------------------------
+		|
+		|
+		*/
+
+			public static function group($_GRUPO, $_ROUTERS = null, $_MIDDLEWARES = [])
 			{
-				if(is_array($_GRUPO)){
-					if(isset($_GRUPO['prefix'])){
-
+				if (is_array($_GRUPO)) {
+					if (isset($_GRUPO['prefix'])) {
 						array_push(self::$group_routers, $_GRUPO['prefix']);
-
-						if(self::verifyGroup($_GRUPO['prefix'])){
-
-							if(isset($_GRUPO['middleware'])){
-								self::callMiddleware($_GRUPO['middleware'], function()use($_ROUTERS){
+						
+						if (self::verifyGroup($_GRUPO['prefix'])) {
+							if (isset($_GRUPO['middleware'])) {
+								self::callMiddleware($_GRUPO['middleware'], function ($return, $next) use ($_ROUTERS) {
 									if (is_callable($_ROUTERS)) {
-										$_ROUTERS();
+										$_ROUTERS($return, $next);
 										array_pop(self::$group_routers);
 										return new static;
 									}
 								});
-							}else{
+							} else {
 								if (is_callable($_ROUTERS)) {
 									$_ROUTERS();
 									array_pop(self::$group_routers);
 									return new static;
 								}
 							}
-						}else{
+						} else {
 							return new static;
 						}
 					}
-				}else{
+				} else {
 					array_push(self::$group_routers, $_GRUPO);
-					if(self::verifyGroup($_GRUPO)){
+					if (self::verifyGroup($_GRUPO)) {
 						if (is_callable($_ROUTERS)) {
-							$_ROUTERS();
-							array_pop(self::$group_routers);
-							return new static;
+							self::callMiddleware($_MIDDLEWARES, function ($return, $next) use ($_ROUTERS) {
+								$_ROUTERS($return, $next);
+								array_pop(self::$group_routers);
+								return new static;
+							});
 						}
-					}else{
+					} else {
 						return new static;
 					}
-
 				}
 			}
-
-			
-
 
 		/*
 		|------------------------------------------------------------------
