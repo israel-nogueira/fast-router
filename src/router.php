@@ -415,6 +415,7 @@ namespace IsraelNogueira\fastRouter;
 
 			public static function group($_GRUPO, $_ROUTERS = null, $_MIDDLEWARES = [])
 			{
+
 				if (is_array($_GRUPO)) {
 					if (isset($_GRUPO['prefix'])) {
 						array_push(self::$group_routers, $_GRUPO['prefix']);
@@ -429,6 +430,7 @@ namespace IsraelNogueira\fastRouter;
 									}
 								});
 							} else {
+
 								if (is_callable($_ROUTERS)) {
 									$_ROUTERS();
 									array_pop(self::$group_routers);
@@ -441,6 +443,7 @@ namespace IsraelNogueira\fastRouter;
 					}
 				} else {
 					array_push(self::$group_routers, $_GRUPO);
+					
 					if (self::verifyGroup($_GRUPO)) {
 						if (is_callable($_ROUTERS)) {
 							self::callMiddleware($_MIDDLEWARES, function ($return, $next) use ($_ROUTERS) {
