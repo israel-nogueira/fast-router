@@ -113,14 +113,23 @@ namespace IsraelNogueira\fastRouter;
 						$object = new $class();
 						return call_user_func_array([$object, $method], $parameters);
 					} else {
-						// Verifica se a classe foi declarada antes de utilizar o autoload
+
 						if (!class_exists($class)) {
-							spl_autoload_register(function ($class) {
-								$classFile = str_replace('\\', '/', $class) . '.php';
-								if (file_exists($classFile)) {
-									require_once $classFile;
+							$filePath = realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..') . DIRECTORY_SEPARATOR;
+							$pattern = $class . '.*.php';
+							$fileList = glob($filePath . $pattern);
+							if (empty($fileList)) {
+								$pattern = $class . '.php';
+								$fileList = glob($filePath . $pattern);
+							}
+							spl_autoload_register(function ($className)use($fileList) {
+								if(count($fileList)>0){
+									foreach($fileList as $file){
+										require_once $file;
+									}
 								}
 							});
+
 							if (class_exists($class) && method_exists($class, $method)) {
 								$object = new $class();
 								return call_user_func_array([$object, $method], $parameters);
