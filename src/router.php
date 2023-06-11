@@ -23,8 +23,7 @@ namespace IsraelNogueira\fastRouter;
 		|    __CALLSTATIC
 		|------------------------------------------------------------------
 		*/
-			public static function __callStatic($name, $arguments)
-			{
+			public static function __callStatic($name, $arguments){
 				if (in_array(strtoupper($name), ['ANY','MATH','GET', 'REDIRECT','POST','RMDIR','MKDIR','INDEX','MOVE','TRACE','DELETE','TRACK','PUT','HEAD','OPTIONS','CONNECT'])) {
 					if(strtoupper($name)=='MATH' && is_array($arguments[0])){
 						$name = $arguments[0];
@@ -34,7 +33,6 @@ namespace IsraelNogueira\fastRouter;
 				} else {
 					self::$name(...$arguments);
 				}
-				exit;
 			}
 
 		/*
@@ -403,7 +401,7 @@ namespace IsraelNogueira\fastRouter;
 
 			public static function verifyGroup($_GRUPO){
 				$MODELO 		=	trim($_GRUPO, '/');
-				$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9\/]+$/', $MODELO);
+				$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9-\/]+$/', $MODELO);
 				$GRUPO_STRING	=	implode('/',self::$group_routers);
 				$GRUPO_ARRAY	=	explode('/',$GRUPO_STRING);
 				$URL_BROWSER	=	explode('/',trim(self::urlPath(), '/'));
