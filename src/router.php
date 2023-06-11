@@ -398,17 +398,15 @@ namespace IsraelNogueira\fastRouter;
 		|
 		|
 		*/
-
 			public static function verifyGroup($_GRUPO){
 				$MODELO 		=	trim($_GRUPO, '/');
-				$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9-\/]+$/', $MODELO);
+				$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9\/\-]+$/', $MODELO);
 				$GRUPO_STRING	=	implode('/',self::$group_routers);
 				$GRUPO_ARRAY	=	explode('/',$GRUPO_STRING);
 				$URL_BROWSER	=	explode('/',trim(self::urlPath(), '/'));
 				$COUNT			=	count($GRUPO_ARRAY);
 				$RANGE1 		=	array_slice($GRUPO_ARRAY,0,$COUNT);
 				$RANGE2 		=	array_slice($URL_BROWSER,0,$COUNT);
-
 				return ($MODEL_VALIDO && $RANGE1==$RANGE2);
 			}
 
@@ -419,51 +417,48 @@ namespace IsraelNogueira\fastRouter;
 		|
 		|
 		*/
-
-			public static function group($_GRUPO, $_ROUTERS = null, $_MIDDLEWARES = [])
-			{
-
-				if (is_array($_GRUPO)) {
-					if (isset($_GRUPO['prefix'])) {
+			public static function group($_GRUPO, $_ROUTERS=NULL){
+				if(is_array($_GRUPO)){
+					if(isset($_GRUPO['prefix'])){
 						array_push(self::$group_routers, $_GRUPO['prefix']);
-						
-						if (self::verifyGroup($_GRUPO['prefix'])) {
-							if (isset($_GRUPO['middleware'])) {
-								self::callMiddleware($_GRUPO['middleware'], function ($return, $next) use ($_ROUTERS) {
+						if(self::verifyGroup($_GRUPO['prefix'])){
+							if(isset($_GRUPO['middleware'])){
+								self::callMiddleware($_GRUPO['middleware'], function()use($_ROUTERS){
 									if (is_callable($_ROUTERS)) {
-										$_ROUTERS($return, $next);
+										$_ROUTERS();
 										array_pop(self::$group_routers);
 										return new static;
 									}
 								});
-							} else {
-
+							}else{
 								if (is_callable($_ROUTERS)) {
 									$_ROUTERS();
 									array_pop(self::$group_routers);
 									return new static;
 								}
 							}
-						} else {
+						}else{
+							self::$group_routers = [];
 							return new static;
 						}
 					}
-				} else {
+				}else{
 					array_push(self::$group_routers, $_GRUPO);
-					
-					if (self::verifyGroup($_GRUPO)) {
+					if(self::verifyGroup($_GRUPO)){
 						if (is_callable($_ROUTERS)) {
-							self::callMiddleware($_MIDDLEWARES, function ($return, $next) use ($_ROUTERS) {
-								$_ROUTERS($return, $next);
-								array_pop(self::$group_routers);
-								return new static;
-							});
+							$_ROUTERS();
+							array_pop(self::$group_routers);
+							return new static;
 						}
-					} else {
+					}else{
+						self::$group_routers = [];
 						return new static;
 					}
+
 				}
+				
 			}
+
 
 		/*
 		|------------------------------------------------------------------
