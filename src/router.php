@@ -1,6 +1,8 @@
 <?
 
 namespace IsraelNogueira\fastRouter;
+use RuntimeException;
+use Closure;
 /**
  * -------------------------------------------------------------------------
  * 
@@ -13,17 +15,20 @@ namespace IsraelNogueira\fastRouter;
  * -------------------------------------------------------------------------
  */
 	class router{
-
-		public static $group_routers 			= [];
+		
+		public static $group_routers = [];
 		public static $paramsHandler 			= null;
-		public function __construct(){}
+		public function __construct(){
+			
+		}
 
 		/*
 		|------------------------------------------------------------------
 		|    __CALLSTATIC
 		|------------------------------------------------------------------
 		*/
-			public static function __callStatic($name, $arguments){
+			public static function __callStatic($name, $arguments)
+			{
 				if (in_array(strtoupper($name), ['ANY','MATH','GET', 'REDIRECT','POST','RMDIR','MKDIR','INDEX','MOVE','TRACE','DELETE','TRACK','PUT','HEAD','OPTIONS','CONNECT'])) {
 					if(strtoupper($name)=='MATH' && is_array($arguments[0])){
 						$name = $arguments[0];
@@ -78,8 +83,8 @@ namespace IsraelNogueira\fastRouter;
 		|------------------------------------------------------------------
 		*/
 
-			public static function execFn($function, ...$parameters)
-			{	
+			public static function execFn($function, ...$parameters){	
+								
 				if (is_callable($function)) {
 					// Verifica se é uma função ou método estático
 					if (is_string($function)) {
@@ -105,14 +110,16 @@ namespace IsraelNogueira\fastRouter;
 						$function($parameters);
 					}
 				} elseif (is_string($function) && strpos($function, '@') !== false) {
+					
 					// Verifica se é uma string com "@" para chamar uma função de classe
 					list($class, $method) = explode('@', $function);
 					if (class_exists($class) && method_exists($class, $method)) {
 						$object = new $class();
-						return call_user_func_array([$object, $method], $parameters);
+						return call_user_func_array([$object, $method], $parameters);						
 					} else {
-
+						// Verifica se a classe foi declarada antes de utilizar o autoload
 						if (!class_exists($class)) {
+
 							$filePath = realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..') . DIRECTORY_SEPARATOR;
 							$pattern = $class . '.*.php';
 							$fileList = glob($filePath . $pattern);
@@ -140,6 +147,7 @@ namespace IsraelNogueira\fastRouter;
 						return call_user_func_array($function, $parameters);
 					}
 				}
+
 				// throw new Exception('Function or method not found');
 			}
 
@@ -355,49 +363,61 @@ namespace IsraelNogueira\fastRouter;
 		|
 		|
 		*/
-		private static function callMiddleware($middlewares, $callback)
-		{
-			$middlewares = (!is_array($middlewares)) ? [$middlewares] : $middlewares;
-			$next = $callback;
-			foreach (array_reverse($middlewares) as $middleware) {
-				if (is_callable($middleware)) {
-					$next = function ($return) use ($middleware, $next) {
-						return call_user_func($middleware, $return, $next);
-					};
-				} else {
-					[$middleware_class, $middleware_method] = explode('@', $middleware) + [1 => 'handle'];
-					if (is_callable([$middleware_class, $middleware_method])) {
-						$next = function ($return) use ($middleware_class, $middleware_method, $next) {
-							return call_user_func([$middleware_class, $middleware_method], $return, $next);
-						};
-					} elseif (is_subclass_of($middleware_class, self::class)) {
-						$middleware_instance = new $middleware_class;
-						$next = function ($return) use ($middleware_instance, $middleware_method, $next) {
-							return call_user_func([$middleware_instance, $middleware_method], $return, $next);
-						};
-					} elseif (method_exists(static::class, $middleware_method)) {
-						$next = function ($return) use ($middleware_method, $next) {
-							return call_user_func([static::class, $middleware_method], $return, $next);
-						};
-					} elseif (method_exists(get_called_class(), $middleware_method)) {
-						$next = function ($return) use ($middleware_method, $next) {
-							return call_user_func([get_called_class(), $middleware_method], $return, $next);
-						};
+
+			private static function callMiddleware($middlewares, $callback, $return = []){
+				$middlewares = (!is_array($middlewares)) ? [$middlewares] : $middlewares;
+				$next = $callback;
+				if (!is_callable($next) || !($next instanceof Closure)) {$next = function () {};}
+				foreach (array_reverse($middlewares) as $middleware) {
+					$middle =  $middleware;
+					if (is_callable($middleware)) {
+						$next = fn($return) => call_user_func($middleware, $return, $next);
+					} else {
+						[$middleware_class, $middleware_method] = explode('@', $middleware) + [1 => 'handle'];
+
+						if (is_callable([$middleware_class, $middleware_method])) {
+							$next = fn($return) => call_user_func([$middleware_class, $middleware_method], $return, $next);
+						} elseif (is_subclass_of($middleware_class, self::class)) {
+							$middleware_instance = new $middleware_class;
+							$next = fn($return) => call_user_func([$middleware_instance, $middleware_method], $return, $next);
+						} elseif (method_exists(static::class, $middleware_method)) {
+							$next = fn($return) => call_user_func([static::class, $middleware_method], $return, $next);
+						} elseif (method_exists(get_called_class(), $middleware_method)) {
+							$next = fn($return) => call_user_func([get_called_class(), $middleware_method], $return, $next);
+						} else {
+							
+							$pattern = $middleware_class . '.*.php';
+							$fileList = glob($filePath . $pattern);
+
+							if (empty($fileList)) {
+								$pattern = $middleware_class . '.php';
+								$fileList = glob($filePath . $pattern);
+							}
+
+							if (count($fileList) > 0) {
+								foreach ($fileList as $file) {
+									require_once $file;
+								}
+							}
+
+							if (class_exists($middleware_class) && method_exists($middleware_class, $middleware_method)) {
+								$middleware_object = new $middleware_class();
+								$next = fn($return) => call_user_func([$middleware_object, $middleware_method], $return, $next);
+							}
+						}
 					}
 				}
+				$next($return, $next);
 			}
-			$next([]);
-		}
-
-
 
 		/*
 		|------------------------------------------------------------------
-		|	COMPARA AS URLS PARA VER SE BATE COM O GRUPO
+		|	GROUPS
 		|-------------------------------------------------------------------
 		|
 		|
 		*/
+
 			public static function verifyGroup($_GRUPO){
 				$MODELO 		=	trim($_GRUPO, '/');
 				$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9\/\-]+$/', $MODELO);
@@ -410,22 +430,16 @@ namespace IsraelNogueira\fastRouter;
 				return ($MODEL_VALIDO && $RANGE1==$RANGE2);
 			}
 
-		/*
-		|------------------------------------------------------------------
-		|	GROUPS
-		|-------------------------------------------------------------------
-		|
-		|
-		*/
 			public static function group($_GRUPO, $_ROUTERS=NULL){
 				if(is_array($_GRUPO)){
 					if(isset($_GRUPO['prefix'])){
 						array_push(self::$group_routers, $_GRUPO['prefix']);
 						if(self::verifyGroup($_GRUPO['prefix'])){
 							if(isset($_GRUPO['middleware'])){
-								self::callMiddleware($_GRUPO['middleware'], function()use($_ROUTERS){
+								self::callMiddleware($_GRUPO['middleware'], function($retornos)use($_ROUTERS){
+
 									if (is_callable($_ROUTERS)) {
-										$_ROUTERS();
+										$_ROUTERS($retornos);
 										array_pop(self::$group_routers);
 										return new static;
 									}
@@ -458,6 +472,8 @@ namespace IsraelNogueira\fastRouter;
 				}
 				
 			}
+
+			
 
 
 		/*
@@ -497,6 +513,7 @@ namespace IsraelNogueira\fastRouter;
 			public static function send($_REQUEST_METHOD="GET",$_PATH=null,$_SUCESS=null, $_ERROR=null)
 			{
 				self::route($_PATH);
+
 				return self::request($_REQUEST_METHOD,$_SUCESS,$_ERROR);
 			}
 
@@ -513,10 +530,9 @@ namespace IsraelNogueira\fastRouter;
 
 			public static function request($_REQUEST_METHOD=null,$_SUCESS=null,$_ERROR=null)
 			{
+
 				if(self::$paramsHandler['status']==true){
-
 					$PARAMS_URL = array_values(self::$paramsHandler['params']);
-
 					if(is_array($_SUCESS)){
 						$_CALLBACK = $_SUCESS[0];
 						array_shift($_SUCESS);
@@ -536,6 +552,7 @@ namespace IsraelNogueira\fastRouter;
 					if(  in_array($REQ2,$REQ1 ) ||  $REQ1[0]=='ANY'	){
 						self::execFn($_CALLBACK, ...$_PARAMS);
 					}else{
+						print_r(__LINE__);
 						if (is_callable($_ERROR)) {
 							self::execFn($_ERROR,'ILEGAL REQUEST_METHOD: '.trim($REQ2));
 						}else{
@@ -544,6 +561,7 @@ namespace IsraelNogueira\fastRouter;
 						}
 					}
 				}
+
 			}
 
 	}
