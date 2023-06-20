@@ -120,16 +120,17 @@ As middlewares são aplicáveis de  uma forma muito simples:
 	use IsraelNogueira\fastRouter\router;
 
 	router::group([
-					'prefix'=>'/admin',
-					'middleware'=>[
-						'App/Middlewares/auth@middl_1',
-						'App/Middlewares/auth@middl_2',
-						'App/Middlewares/auth@middl_3'
-					]
-				],
-			function(){
-				callback();
-			});
+			'prefix'=>'/admin',
+			'middleware'=>[
+				'App/Middlewares/auth@middl_1',
+				'App/Middlewares/auth@middl_2',
+				'App/Middlewares/auth@middl_3'
+			]
+		],
+		function($return){
+			print_r($return);
+			exit;
+		});
 	
 	
 ?>
