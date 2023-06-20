@@ -3,6 +3,7 @@
 namespace IsraelNogueira\fastRouter;
 use RuntimeException;
 use Closure;
+
 /**
  * -------------------------------------------------------------------------
  * 
@@ -16,11 +17,9 @@ use Closure;
  */
 	class router{
 		
-		public static $group_routers = [];
-		public static $paramsHandler 			= null;
-		public function __construct(){
-			
-		}
+		public static $group_routers	= [];
+		public static $paramsHandler 	= null;
+		public function __construct()	{}
 
 		/*
 		|------------------------------------------------------------------
@@ -40,12 +39,15 @@ use Closure;
 				}
 			}
 
+
+
+			
+
 		/*
 		|------------------------------------------------------------------
 		|    RETORNA A URL
 		|------------------------------------------------------------------
 		*/
-
 			static function urlPath($node = null, $debug = true) 
 			{
 				if (substr($_SERVER['REQUEST_URI'], 0, 1) == '/')
@@ -75,6 +77,7 @@ use Closure;
 				}
 			}
 
+
 		/*
 		|------------------------------------------------------------------
 		|	EXECUTA FUNÇÕES 
@@ -82,9 +85,8 @@ use Closure;
 		|	Aqui, qualquer função, classe, método passado será executado
 		|------------------------------------------------------------------
 		*/
-
-			public static function execFn($function, ...$parameters){	
-								
+			public static function execFn($function, ...$parameters)
+			{	
 				if (is_callable($function)) {
 					// Verifica se é uma função ou método estático
 					if (is_string($function)) {
@@ -152,8 +154,6 @@ use Closure;
 			}
 
 
-
-
 		/*
 		|------------------------------------------------------------------
 		|	CRIA O REGEX 
@@ -161,7 +161,8 @@ use Closure;
 		|	Criamos o regex que será validado na sequencia 
 		|------------------------------------------------------------------
 		*/
-			public static function gerarRegex( $rota ){
+			public static function gerarRegex( $rota )
+			{
 				$rota             = str_replace( ["{","}"], ["｛", "｝"], $rota );
 				$regex_parametros = "/｛(?'chamada'((((((?'parametro'([a-z0-9\_,]+))\:)?(?'valor'([^｛｝]+))))|(?R))*))｝/";
 				$regex_final      = '';
@@ -186,6 +187,7 @@ use Closure;
 				return $regex_final;
 			} 
 
+
 		/*
 		|------------------------------------------------------------------
 		|	FORMATA ROTA
@@ -193,7 +195,6 @@ use Closure;
 		|	Tratamos os parâmetros da rota 
 		|-------------------------------------------------------------------
 		*/
-
 			public function formatParamsRoute( $match )
 			{
 				$novo = $match[0];
@@ -214,7 +215,6 @@ use Closure;
 		|    caso a URL esteja correta e dentro do que espera-se
 		|-------------------------------------------------------------------
 		*/
-
 			static public function parametrosRota($_ROTA,$FAKE_ROUTE=NULL)
 			{
 				$_REGEX = self::gerarRegex(trim($_ROTA,'/'));
@@ -250,6 +250,9 @@ use Closure;
 				}
 			}
 			
+
+
+
 		/*
 		|------------------------------------------------------------------
 		|	FILTRANDO OS PARÂMETROS
@@ -260,7 +263,6 @@ use Closure;
 		|
 		|
 		*/
-
 			public function filterParameters($_PARAMS)
 			{
 				if ($_SERVER['REQUEST_METHOD'] == 'PUT') {
@@ -277,6 +279,9 @@ use Closure;
 				return $this;
 			}
 
+
+
+
 		/*
 		|------------------------------------------------------------------
 		|	EXIGINDO PARÂMTROS
@@ -288,7 +293,6 @@ use Closure;
 		|
 		|
 		*/
-
 			public function requireParameters($_PARAMS,$_ERROR=null)
 			{
 				if(is_array($_PARAMS) && count($_PARAMS)>0){
@@ -308,6 +312,9 @@ use Closure;
 				}
 				return $this;
 			}
+
+
+
 
 		/*
 		|------------------------------------------------------------------
@@ -344,7 +351,6 @@ use Closure;
 		|
 		|
 		*/
-
 			public static function route($_ROTA,$FAKE_ROUTE=NULL)
 			{
 					$full_route = "";
@@ -356,15 +362,16 @@ use Closure;
 				return new static;
 			}
 
+
+
+
 		/*
 		|------------------------------------------------------------------
 		|	MIDDLEWARES
 		|-------------------------------------------------------------------
-		|
-		|
 		*/
-
-			private static function callMiddleware($middlewares, $callback, $return = []){
+			private static function callMiddleware($middlewares, $callback, $return = [])
+			{
 				$middlewares = (!is_array($middlewares)) ? [$middlewares] : $middlewares;
 				$next = $callback;
 				if (!is_callable($next) || !($next instanceof Closure)) {$next = function () {};}
@@ -385,6 +392,8 @@ use Closure;
 						} elseif (method_exists(get_called_class(), $middleware_method)) {
 							$next = fn($return) => call_user_func([get_called_class(), $middleware_method], $return, $next);
 						} else {
+
+							$filePath = realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..') . DIRECTORY_SEPARATOR;
 							
 							$pattern = $middleware_class . '.*.php';
 							$fileList = glob($filePath . $pattern);
@@ -410,15 +419,16 @@ use Closure;
 				$next($return, $next);
 			}
 
+
+
+
 		/*
 		|------------------------------------------------------------------
 		|	GROUPS
 		|-------------------------------------------------------------------
-		|
-		|
 		*/
-
-			public static function verifyGroup($_GRUPO){
+			public static function verifyGroup($_GRUPO)
+			{
 				$MODELO 		=	trim($_GRUPO, '/');
 				$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9\/\-]+$/', $MODELO);
 				$GRUPO_STRING	=	implode('/',self::$group_routers);
@@ -430,7 +440,8 @@ use Closure;
 				return ($MODEL_VALIDO && $RANGE1==$RANGE2);
 			}
 
-			public static function group($_GRUPO, $_ROUTERS=NULL){
+			public static function group($_GRUPO, $_ROUTERS=NULL)
+			{
 				if(is_array($_GRUPO)){
 					if(isset($_GRUPO['prefix'])){
 						array_push(self::$group_routers, $_GRUPO['prefix']);
@@ -473,7 +484,7 @@ use Closure;
 				
 			}
 
-			
+
 
 
 		/*
@@ -481,10 +492,7 @@ use Closure;
 		|	VERIFICAÇÃO AO SEU GOSTO 
 		|-------------------------------------------------------------------
 		|	Poderá ser colocado uma função no $_VAR ou um parametro boleano 
-		|
-		|
 		*/
-
 			public function verify($_VAR,$_RETORNO)
 			{
 				if($_VAR==false){
@@ -498,6 +506,9 @@ use Closure;
 				return $this;
 			}
 
+
+
+
 		/*
 		|------------------------------------------------------------------
 		|	CALL STATIC MANDA OS DADOS
@@ -509,13 +520,31 @@ use Closure;
 		|
 		|
 		*/
-
 			public static function send($_REQUEST_METHOD="GET",$_PATH=null,$_SUCESS=null, $_ERROR=null)
 			{
-				self::route($_PATH);
 
+				if(is_array($_PATH)){
+					if(isset($_PATH['middleware'])){
+						self::callMiddleware($_PATH['middleware'], function($retornos)use($_PATH,$_REQUEST_METHOD, $_SUCESS,$_ERROR){
+							self::route($_PATH['prefix']);
+							self::$paramsHandler['middleware'] =$retornos;
+							return self::request($_REQUEST_METHOD,$_SUCESS,$_ERROR);
+						});
+					}
+
+					if(isset($_PATH['prefix'])){
+						$_PATH = $_PATH['prefix'];
+					}
+				}
+
+				self::route($_PATH);
 				return self::request($_REQUEST_METHOD,$_SUCESS,$_ERROR);
+
 			}
+
+
+
+
 
 		/*
 		|------------------------------------------------------------------
@@ -527,11 +556,10 @@ use Closure;
 		|   Parametros: (string, function, function)  
 		|
 		*/
-
 			public static function request($_REQUEST_METHOD=null,$_SUCESS=null,$_ERROR=null)
 			{
-
 				if(self::$paramsHandler['status']==true){
+					print_r(self::$paramsHandler);
 					$PARAMS_URL = array_values(self::$paramsHandler['params']);
 					if(is_array($_SUCESS)){
 						$_CALLBACK = $_SUCESS[0];
@@ -545,14 +573,11 @@ use Closure;
 						$_PARAMS	= $PARAMS_URL;
 						$_CALLBACK	= $_SUCESS;
 					}
-					
 					$REQ1 = (!is_array($_REQUEST_METHOD))?[strtoupper(trim($_REQUEST_METHOD))]:$_REQUEST_METHOD;
 					$REQ2 = strtoupper(trim($_SERVER['REQUEST_METHOD']));
-					
 					if(  in_array($REQ2,$REQ1 ) ||  $REQ1[0]=='ANY'	){
 						self::execFn($_CALLBACK, ...$_PARAMS);
 					}else{
-						print_r(__LINE__);
 						if (is_callable($_ERROR)) {
 							self::execFn($_ERROR,'ILEGAL REQUEST_METHOD: '.trim($REQ2));
 						}else{
@@ -561,7 +586,6 @@ use Closure;
 						}
 					}
 				}
-
 			}
 
 	}
