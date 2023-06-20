@@ -559,7 +559,6 @@ use Closure;
 			public static function request($_REQUEST_METHOD=null,$_SUCESS=null,$_ERROR=null)
 			{
 				if(self::$paramsHandler['status']==true){
-					print_r(self::$paramsHandler);
 					$PARAMS_URL = array_values(self::$paramsHandler['params']);
 					if(is_array($_SUCESS)){
 						$_CALLBACK = $_SUCESS[0];
