@@ -18,7 +18,7 @@ use Closure;
 	class router{
 		
 		public static $group_routers	= [];
-		public static $paramsHandler 	= null;
+		public static $handler 			= null;
 		public function __construct()	{}
 
 		/*
@@ -358,7 +358,7 @@ use Closure;
 						$full_route .= $group . '/';
 					}
 					$full_route .= $_ROTA;
-				self::$paramsHandler = self::parametrosRota($full_route, $FAKE_ROUTE);
+				self::$handler = self::parametrosRota($full_route, $FAKE_ROUTE);
 				return new static;
 			}
 
@@ -527,7 +527,7 @@ use Closure;
 					if(isset($_PATH['middleware'])){
 						self::callMiddleware($_PATH['middleware'], function($retornos)use($_PATH,$_REQUEST_METHOD, $_SUCESS,$_ERROR){
 							self::route($_PATH['prefix']);
-							self::$paramsHandler['middleware'] =$retornos;
+							self::$handler['middleware'] =$retornos;
 							return self::request($_REQUEST_METHOD,$_SUCESS,$_ERROR);
 						});
 					}
@@ -558,8 +558,8 @@ use Closure;
 		*/
 			public static function request($_REQUEST_METHOD=null,$_SUCESS=null,$_ERROR=null)
 			{
-				if(self::$paramsHandler['status']==true){
-					$PARAMS_URL = array_values(self::$paramsHandler['params']);
+				if(self::$handler['status']==true){
+					$PARAMS_URL = array_values(self::$handler['params']);
 					if(is_array($_SUCESS)){
 						$_CALLBACK = $_SUCESS[0];
 						array_shift($_SUCESS);
