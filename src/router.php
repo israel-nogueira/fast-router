@@ -92,13 +92,13 @@ use Closure;
 					if (is_string($function)) {
 						// Verifica se é uma função global
 						if (function_exists($function)) {
-							return call_user_func_array($function, $parameters);
+							return call_user_func_array($function, ...$parameters);
 						} else {
 							// Verifica se é um método estático de classe
 							if (strpos($function, '::') !== false) {
 								list($class, $method) = explode('::', $function);
 								if (class_exists($class) && method_exists($class, $method)) {
-									return call_user_func_array($function, $parameters);
+									return call_user_func_array($function, ...$parameters);
 								}
 							}
 						}
@@ -106,10 +106,10 @@ use Closure;
 						// Verifica se é um método de objeto
 						list($object, $method) = $function;
 						if (is_object($object) && method_exists($object, $method)) {
-							return call_user_func_array([$object, $method], $parameters);
+							return call_user_func_array([$object, $method], ...$parameters);
 						}
 					} else {
-						$function($parameters);
+						$function(...$parameters);
 					}
 				} elseif (is_string($function) && strpos($function, '@') !== false) {
 					
@@ -117,7 +117,7 @@ use Closure;
 					list($class, $method) = explode('@', $function);
 					if (class_exists($class) && method_exists($class, $method)) {
 						$object = new $class();
-						return call_user_func_array([$object, $method], $parameters);						
+						return call_user_func_array([$object, $method], ...$parameters);						
 					} else {
 						// Verifica se a classe foi declarada antes de utilizar o autoload
 						if (!class_exists($class)) {
@@ -139,14 +139,14 @@ use Closure;
 
 							if (class_exists($class) && method_exists($class, $method)) {
 								$object = new $class();
-								return call_user_func_array([$object, $method], $parameters);
+								return call_user_func_array([$object, $method], ...$parameters);
 							}
 						}
 					}
 				} elseif (is_string($function) && strpos($function, '\\') !== false) {
 					// Verifica se é uma string com "\\" para chamar uma função de namespace
 					if (function_exists($function)) {
-						return call_user_func_array($function, $parameters);
+						return call_user_func_array($function, ...$parameters);
 					}
 				}
 
@@ -572,6 +572,7 @@ use Closure;
 						$_PARAMS	= $PARAMS_URL;
 						$_CALLBACK	= $_SUCESS;
 					}
+
 					$REQ1 = (!is_array($_REQUEST_METHOD))?[strtoupper(trim($_REQUEST_METHOD))]:$_REQUEST_METHOD;
 					$REQ2 = strtoupper(trim($_SERVER['REQUEST_METHOD']));
 					if(  in_array($REQ2,$REQ1 ) ||  $REQ1[0]=='ANY'	){
