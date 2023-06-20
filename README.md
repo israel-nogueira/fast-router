@@ -120,8 +120,13 @@ As middlewares são aplicáveis de  uma forma muito simples:
 	use IsraelNogueira\fastRouter\router;
 
 	router::group([
-			'prefix'=>'/admin',
-			'middleware'=>['App/Middlewares/auth@middl_1','App/Middlewares/auth@middl_2','App/Middlewares/auth@middl_3']],
+					'prefix'=>'/admin',
+					'middleware'=>[
+						'App/Middlewares/auth@middl_1',
+						'App/Middlewares/auth@middl_2',
+						'App/Middlewares/auth@middl_3'
+					]
+				],
 			function(){
 				callback();
 			});
@@ -138,32 +143,48 @@ Cada função é definida de maneira que a próxima é executada apenas se a atu
 	namespace IsraelNogueira\Models;
 	use IsraelNogueira\fastRouter\router;
 	
-	function middl_1($next){
+	function middl_1($return=[], $next=null){
 		// faz o que tiver que fazer
 		// ... ... ... 
+		// caso você queira parar o processo e retornar um erro
+		if($qualquer_erro){
+			throw new Exception("Error Processing Request", 1);
+		}
 		// executa a próxima
-		$next();
+		$next($return, $next);
 	}
 	
-	function middl_2($next){
+	function middl_2($return=[], $next=null){
 		// faz o que tiver que fazer
 		// ... ... ... 
+		// caso você queira apenas armazenar o erro
+		if($qualquer_erro){
+			$return[] = ['status'=>false,'middleware'=>[__CLASS__.' > '.__FUNCTION__]];
+		}
 		// executa a próxima
-		$next();
+		$next($return, $next);
 	}
 	
-	function middl_3($next){
+	function middl_3($return=[], $next=null){
 		// faz o que tiver que fazer
 		// ... ... ... 
+		// Ou ainda executar uma função paralela
+		if($qualquer_erro){
+			$return[] = ['status'=>false,'middleware'=>[__CLASS__.' > '.__FUNCTION__]];
+			$this->corrige_algo();
+		}
 		// executa a próxima
-		$next();
+		$next($return, $next);
 	}
 
 
 	router::group([
 		'prefix'=>'/admin',
 		'middleware'=>['middl_1','middl_2','middl_3']],
-		function(){callback();}
+		function($return){
+			print_r($return);
+			exit;
+		}
 	);
 
 
