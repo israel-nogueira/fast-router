@@ -18,6 +18,7 @@ use Closure;
 	class router{
 		
 		public static $group_routers	= [];
+		public static $middleware		= [];
 		public static $handler 			= null;
 		public function __construct()	{}
 
@@ -92,13 +93,13 @@ use Closure;
 					if (is_string($function)) {
 						// Verifica se é uma função global
 						if (function_exists($function)) {
-							return call_user_func_array($function, ...$parameters);
+							return call_user_func_array($function, $parameters);
 						} else {
 							// Verifica se é um método estático de classe
 							if (strpos($function, '::') !== false) {
 								list($class, $method) = explode('::', $function);
 								if (class_exists($class) && method_exists($class, $method)) {
-									return call_user_func_array($function, ...$parameters);
+									return call_user_func_array($function, $parameters);
 								}
 							}
 						}
@@ -106,18 +107,18 @@ use Closure;
 						// Verifica se é um método de objeto
 						list($object, $method) = $function;
 						if (is_object($object) && method_exists($object, $method)) {
-							return call_user_func_array([$object, $method], ...$parameters);
+							return call_user_func_array([$object, $method], $parameters);
 						}
 					} else {
-						$function(...$parameters);
+						$function($parameters);
 					}
 				} elseif (is_string($function) && strpos($function, '@') !== false) {
-					
 					// Verifica se é uma string com "@" para chamar uma função de classe
 					list($class, $method) = explode('@', $function);
 					if (class_exists($class) && method_exists($class, $method)) {
 						$object = new $class();
-						return call_user_func_array([$object, $method], ...$parameters);						
+
+						return call_user_func_array([$object, $method], $parameters);						
 					} else {
 						// Verifica se a classe foi declarada antes de utilizar o autoload
 						if (!class_exists($class)) {
@@ -139,14 +140,14 @@ use Closure;
 
 							if (class_exists($class) && method_exists($class, $method)) {
 								$object = new $class();
-								return call_user_func_array([$object, $method], ...$parameters);
+								return call_user_func_array([$object, $method], $parameters);
 							}
 						}
 					}
 				} elseif (is_string($function) && strpos($function, '\\') !== false) {
 					// Verifica se é uma string com "\\" para chamar uma função de namespace
 					if (function_exists($function)) {
-						return call_user_func_array($function, ...$parameters);
+						return call_user_func_array($function, $parameters);
 					}
 				}
 
@@ -527,7 +528,7 @@ use Closure;
 					if(isset($_PATH['middleware'])){
 						self::callMiddleware($_PATH['middleware'], function($retornos)use($_PATH,$_REQUEST_METHOD, $_SUCESS,$_ERROR){
 							self::route($_PATH['prefix']);
-							self::$handler['middleware'] =$retornos;
+							self::$middleware =$retornos;
 							return self::request($_REQUEST_METHOD,$_SUCESS,$_ERROR);
 						});
 					}
@@ -558,6 +559,7 @@ use Closure;
 		*/
 			public static function request($_REQUEST_METHOD=null,$_SUCESS=null,$_ERROR=null)
 			{
+
 				if(self::$handler['status']==true){
 					$PARAMS_URL = array_values(self::$handler['params']);
 					if(is_array($_SUCESS)){
@@ -575,8 +577,13 @@ use Closure;
 
 					$REQ1 = (!is_array($_REQUEST_METHOD))?[strtoupper(trim($_REQUEST_METHOD))]:$_REQUEST_METHOD;
 					$REQ2 = strtoupper(trim($_SERVER['REQUEST_METHOD']));
-					if(  in_array($REQ2,$REQ1 ) ||  $REQ1[0]=='ANY'	){
-						self::execFn($_CALLBACK, ...$_PARAMS);
+					if(  
+						in_array($REQ2,$REQ1 ) || 
+						$REQ1[0]=='ANY'	
+					){
+
+						self::execFn($_CALLBACK,...$_PARAMS);
+						 
 					}else{
 						if (is_callable($_ERROR)) {
 							self::execFn($_ERROR,'ILEGAL REQUEST_METHOD: '.trim($REQ2));
