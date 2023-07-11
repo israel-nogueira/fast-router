@@ -371,7 +371,7 @@ use Closure;
 		|	MIDDLEWARES
 		|-------------------------------------------------------------------
 		*/
-			private static function callMiddleware($middlewares, $callback, $return = [])
+			private static function middlewares($middlewares, $callback, $return = [])
 			{
 				$middlewares = (!is_array($middlewares)) ? [$middlewares] : $middlewares;
 				$next = $callback;
@@ -448,7 +448,7 @@ use Closure;
 						array_push(self::$group_routers, $_GRUPO['prefix']);
 						if(self::verifyGroup($_GRUPO['prefix'])){
 							if(isset($_GRUPO['middleware'])){
-								self::callMiddleware($_GRUPO['middleware'], function($retornos)use($_ROUTERS){
+								self::middlewares($_GRUPO['middleware'], function($retornos)use($_ROUTERS){
 
 									if (is_callable($_ROUTERS)) {
 										$_ROUTERS($retornos);
@@ -464,7 +464,7 @@ use Closure;
 								}
 							}
 						}else{
-							self::$group_routers = [];
+							array_pop(self::$group_routers);
 							return new static;
 						}
 					}
@@ -477,7 +477,7 @@ use Closure;
 							return new static;
 						}
 					}else{
-						self::$group_routers = [];
+						array_pop(self::$group_routers);
 						return new static;
 					}
 
@@ -526,7 +526,7 @@ use Closure;
 
 				if(is_array($_PATH)){
 					if(isset($_PATH['middleware'])){
-						self::callMiddleware($_PATH['middleware'], function($retornos)use($_PATH,$_REQUEST_METHOD, $_SUCESS,$_ERROR){
+						self::middlewares($_PATH['middleware'], function($retornos)use($_PATH,$_REQUEST_METHOD, $_SUCESS,$_ERROR){
 							self::route($_PATH['prefix']);
 							self::$middleware =$retornos;
 							return self::request($_REQUEST_METHOD,$_SUCESS,$_ERROR);
