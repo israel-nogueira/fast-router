@@ -523,24 +523,17 @@ use Closure;
 		*/
 			public static function send($_REQUEST_METHOD="GET",$_PATH=null,$_SUCESS=null, $_ERROR=null)
 			{
-
 				if(is_array($_PATH)){
 					if(isset($_PATH['middleware'])){
 						self::middlewares($_PATH['middleware'], function($retornos)use($_PATH,$_REQUEST_METHOD, $_SUCESS,$_ERROR){
-							self::route($_PATH['prefix']);
 							self::$middleware =$retornos;
-							return self::request($_REQUEST_METHOD,$_SUCESS,$_ERROR);
 						});
-					}
-
-					if(isset($_PATH['prefix'])){
-						$_PATH = $_PATH['prefix'];
 					}
 				}
 
+				if(isset($_PATH['prefix'])){$_PATH = $_PATH['prefix'];}
 				self::route($_PATH);
 				return self::request($_REQUEST_METHOD,$_SUCESS,$_ERROR);
-
 			}
 
 
@@ -559,7 +552,6 @@ use Closure;
 		*/
 			public static function request($_REQUEST_METHOD=null,$_SUCESS=null,$_ERROR=null)
 			{
-
 				if(self::$handler['status']==true){
 					$PARAMS_URL = array_values(self::$handler['params']);
 					if(is_array($_SUCESS)){
