@@ -3,6 +3,7 @@
 namespace IsraelNogueira\fastRouter;
 use RuntimeException;
 use Closure;
+use Exception;
 
 /**
  * -------------------------------------------------------------------------
@@ -86,72 +87,49 @@ use Closure;
 		|	Aqui, qualquer função, classe, método passado será executado
 		|------------------------------------------------------------------
 		*/
-			public static function execFn($function, ...$parameters)
-			{	
-				if (is_callable($function)) {
-					// Verifica se é uma função ou método estático
-					if (is_string($function)) {
-						// Verifica se é uma função global
-						if (function_exists($function)) {
-							return call_user_func_array($function, ($parameters??null));
-						} else {
-							// Verifica se é um método estático de classe
-							if (strpos($function, '::') !== false) {
-								list($class, $method) = explode('::', $function);
-								if (class_exists($class) && method_exists($class, $method)) {
-									return call_user_func_array($function, ($parameters??null));
+			public static function execFn($function, ...$parameters){	
+
+				$function = trim($function,'\\');
+				$function = trim($function,'/');
+
+				if (is_callable($function) || (is_string($function) && function_exists($function))) {
+					return call_user_func_array($function, ($parameters ?? null));
+				}elseif(is_string($function)) {
+					if (preg_match('/([a-zA-Z0-9_\\\]+)(?:@|::|->)?([a-zA-Z0-9_]*)/', $function, $matches)) {
+						$className = $matches[1];
+						$methodName = !empty($matches[2]) ? $matches[2] : 'index';
+						if (class_exists($className)) {
+							if (method_exists($className, $methodName)) {
+								if (strpos($function, '::') !== false) {
+									return call_user_func_array([$className, $methodName], ($parameters ?? []));
+								} else {
+									$object = new $className();
+									return call_user_func_array([$object, $methodName], ($parameters ?? []));
 								}
 							}
-						}
-					} elseif (is_array($function) && count($function) == 2) {
-						// Verifica se é um método de objeto
-						list($object, $method) = $function;
-						if (is_object($object) && method_exists($object, $method)) {
-							return call_user_func_array([$object, $method], ($parameters??null));
-						}
-					} else {
-						$function(($parameters??null));
-					}
-				} elseif (is_string($function) && strpos($function, '@') !== false) {
-					// Verifica se é uma string com "@" para chamar uma função de classe
-					list($class, $method) = explode('@', $function);
-					if (class_exists($class) && method_exists($class, $method)) {
-						$object = new $class();
-
-						return call_user_func_array([$object, $method], ($parameters??null));						
-					} else {
-						// Verifica se a classe foi declarada antes de utilizar o autoload
-						if (!class_exists($class)) {
-
-							$filePath = realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..') . DIRECTORY_SEPARATOR;
-							$pattern = $class . '.*.php';
-							$fileList = glob($filePath . $pattern);
-							if (empty($fileList)) {
-								$pattern = $class . '.php';
-								$fileList = glob($filePath . $pattern);
-							}
-							spl_autoload_register(function ($className)use($fileList) {
-								if(count($fileList)>0){
-									foreach($fileList as $file){
-										require_once $file;
+						}else{
+							$filePath		= realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..');
+							$_ARQUIVO		= $filePath.DIRECTORY_SEPARATOR.str_replace(['\\','/'],DIRECTORY_SEPARATOR,$className);
+							if(file_exists($_ARQUIVO.'.php')){
+								require_once $_ARQUIVO.'.php';
+								$classe = basename($className);
+								if (class_exists($classe)) {
+									if (method_exists($classe, $methodName)) {
+										if (strpos($function, '::') !== false) {
+											return call_user_func_array([$classe, $methodName], ($parameters ?? []));
+										} else {
+											$object = new $classe();
+											return call_user_func_array([$object, $methodName], ($parameters ?? []));
+										}
 									}
 								}
-							});
-
-							if (class_exists($class) && method_exists($class, $method)) {
-								$object = new $class();
-								return call_user_func_array([$object, $method], ($parameters??null));
 							}
 						}
 					}
-				} elseif (is_string($function) && strpos($function, '\\') !== false) {
-					// Verifica se é uma string com "\\" para chamar uma função de namespace
-					if (function_exists($function)) {
-						return call_user_func_array($function, ($parameters??null));
-					}
-				}
 
-				// throw new Exception('Function or method not found');
+				} else {
+					throw new Exception('Function or method not found');
+				}			
 			}
 
 
