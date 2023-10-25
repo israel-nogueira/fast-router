@@ -89,15 +89,18 @@ use Exception;
 		*/
 			public static function execFn($function, ...$parameters){	
 
-				$function = trim($function,'\\');
-				$function = trim($function,'/');
-
+				
 				if (is_callable($function) || (is_string($function) && function_exists($function))) {
 					return call_user_func_array($function, ($parameters ?? null));
 				}elseif(is_string($function)) {
-					if (preg_match('/([a-zA-Z0-9_\\\]+)(?:@|::|->)?([a-zA-Z0-9_]*)/', $function, $matches)) {
+					
+					$function = trim($function,'\\');
+					$function = trim($function,'/');
+
+					if (preg_match('/([a-zA-Z0-9_\\\\\/]+)(?:@|::|->)?([a-zA-Z0-9_]*)/', $function, $matches)) {
 						$className = $matches[1];
 						$methodName = !empty($matches[2]) ? $matches[2] : 'index';
+
 						if (class_exists($className)) {
 							if (method_exists($className, $methodName)) {
 								if (strpos($function, '::') !== false) {
@@ -108,11 +111,16 @@ use Exception;
 								}
 							}
 						}else{
+
+
 							$filePath		= realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..');
 							$_ARQUIVO		= $filePath.DIRECTORY_SEPARATOR.str_replace(['\\','/'],DIRECTORY_SEPARATOR,$className);
+
 							if(file_exists($_ARQUIVO.'.php')){
 								require_once $_ARQUIVO.'.php';
-								$classe = basename($className);
+   								$className	= str_replace('\\', '/', $className);
+								$classe		= basename($className);
+
 								if (class_exists($classe)) {
 									if (method_exists($classe, $methodName)) {
 										if (strpos($function, '::') !== false) {
@@ -122,6 +130,8 @@ use Exception;
 											return call_user_func_array([$object, $methodName], ($parameters ?? []));
 										}
 									}
+								}else{
+									throw new Exception('"'.$className.'" not found');
 								}
 							}
 						}
