@@ -276,7 +276,7 @@ Todos eles processarão os parametros da rota como parametros da function.
 
 		router::get([
 				'prefix'=>'admin/produtos/{ID}',// URL
-				'middleware'=>[] 				// middlewares (explicado acima)
+				'middleware'=>[] 		// middlewares (explicado acima)
 			], [
 				'functionLocal',
 				'\path1\path2\controllerClass@callback1',  
