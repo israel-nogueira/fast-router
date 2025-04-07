@@ -257,8 +257,9 @@ Cada função é definida de maneira que a próxima é executada apenas se a atu
 
 
 # RETORNO DE CLASSE
-Se a caso você tiver uma classe de controller chamada `controllerClass.php`, e nesse controller existir uma função chamada `getProdutos` poderá inserir pelo namespace e o nome do método dessa forma:
-
+Se a caso você tiver uma classe de controller chamada `controllerClass.php`, e a função de callback pode ser passada e formato de classes.
+Note que podemos também executar multiplos retornos.
+Todos eles processarão os parametros da rota como parametros da function.
 ```php
 <?php
 	use IsraelNogueira\fastRouter\router;
@@ -269,9 +270,14 @@ Se a caso você tiver uma classe de controller chamada `controllerClass.php`, e 
 
 		router::get([
 				'prefix'=>'admin/produtos/{ID}',
-				'middleware'=>["path/middleware1.php","path/middleware2.php"]
+				'middleware'=>[] // middlewares (explicado acima)
 			], 
-			"path1\\path2\\controllerClass@getProdutos"  // <==== aqui
+			[
+				"path1\path2\controllerClass@callback1", 
+				function($ID=null){ print_r($DIE); },
+				"path1\path2\controllerClass@callback3",  
+				"path1\path2\controllerClass@callback4", 
+			]
 		);	
 ?>
 ```
