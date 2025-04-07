@@ -248,6 +248,7 @@ Cada função é definida de maneira que a próxima é executada apenas se a atu
 	*/
 
 		$_ROUTER = 'admin/{id:\d+}[/{title}[/{length}[/{last}/]/]/]';
+
 		// Atenção, não esqueça de inserir "null" para evitar erros 
 		router::post($_ROUTER, function($id=null,$title=null,$length=null,$last=null) {});
 	
@@ -267,11 +268,11 @@ Se a caso você tiver uma classe de controller chamada `controllerClass.php`, e 
 	//-------------------------------------------------------
 
     router::get([
-				'prefix'=>'admin/produtos/{ID}',
-				'middleware'=>["path/middleware1.php","path/middleware2.php"]
-			], 
-			"path1\\path2\\controllerClass@getProdutos"  // <==== aqui
-		);	
+			'prefix'=>'admin/produtos/{ID}',
+			'middleware'=>["path/middleware1.php","path/middleware2.php"]
+		], 
+		"path1\\path2\\controllerClass@getProdutos"  // <==== aqui
+	);	
 ?>
 ```
 
