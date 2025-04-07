@@ -694,39 +694,64 @@ static function urlPath($node = null, $debug = true)
 		|
 		*/
 
-			public static function request($_REQUEST_METHOD=null, $_SUCESS=null, $_ERROR=null){
-				static $executed = false;
-				if(self::$handler['status']==true && !$executed){
-					$executed = true;
-					$PARAMS_URL = array_values(self::$handler['params']);
-					$REQ1 = (!is_array($_REQUEST_METHOD)) ? [strtoupper(trim($_REQUEST_METHOD))] : $_REQUEST_METHOD;
-					$REQ2 = strtoupper(trim($_SERVER['REQUEST_METHOD']));
-					if(in_array($REQ2, $REQ1) || $REQ1[0]=='ANY'){
-						$callbacks = is_array($_SUCESS) ? $_SUCESS : [$_SUCESS];
-						foreach($callbacks as $callback){
-							if(is_string($callback) && strpos($callback, '@') !== false){
-								list($class, $method) = explode('@', $callback);
-								$instance = new $class;
-								call_user_func_array([$instance, $method], $PARAMS_URL);
-							}else if(is_array($callback) && count($callback) == 2){
-								if(is_string($callback[0])){
-									$callback[0] = new $callback[0];
-								}
-								call_user_func_array($callback, $PARAMS_URL);
-							}else if(is_callable($callback)){
-								call_user_func_array($callback, $PARAMS_URL);
-							}
+		public static function request2($_REQUEST_METHOD=null,$_SUCESS=null,$_ERROR=null){
+			static $executed = false;
+			if(self::$handler['status']==true && !$executed){
+				$executed = true;
+				$PARAMS_URL = array_values(self::$handler['params']);
+				$REQ1 = (!is_array($_REQUEST_METHOD)) ? [strtoupper(trim($_REQUEST_METHOD))] : $_REQUEST_METHOD;
+				$REQ2 = strtoupper(trim($_SERVER['REQUEST_METHOD']));
+				if(in_array($REQ2, $REQ1) || $REQ1[0]=='ANY'){
+					if(is_array($_SUCESS)){
+						foreach($_SUCESS as $callback){
+							self::execFn($callback, ...$PARAMS_URL);
 						}
 					}else{
-						if(is_callable($_ERROR)){
-							self::execFn($_ERROR, 'ILEGAL REQUEST_METHOD: '.trim($REQ2));
-						}else{
-							http_response_code(403);
-							die('ILEGAL REQUEST_METHOD '.trim($REQ2));
-						}
+						self::execFn($_SUCESS, ...$PARAMS_URL);
+					}
+				}else{
+					if(is_callable($_ERROR)){
+						self::execFn($_ERROR, 'ILEGAL REQUEST_METHOD: '.trim($REQ2));
+					}else{
+						http_response_code(403);
+						die('ILEGAL REQUEST_METHOD '.trim($REQ2));
 					}
 				}
 			}
+		}
+public static function request($_REQUEST_METHOD=null, $_SUCESS=null, $_ERROR=null){
+    static $executed = false;
+    if(self::$handler['status']==true && !$executed){
+        $executed = true;
+        $PARAMS_URL = array_values(self::$handler['params']);
+        $REQ1 = (!is_array($_REQUEST_METHOD)) ? [strtoupper(trim($_REQUEST_METHOD))] : $_REQUEST_METHOD;
+        $REQ2 = strtoupper(trim($_SERVER['REQUEST_METHOD']));
+        if(in_array($REQ2, $REQ1) || $REQ1[0]=='ANY'){
+            $callbacks = is_array($_SUCESS) ? $_SUCESS : [$_SUCESS];
+            foreach($callbacks as $callback){
+                if(is_string($callback) && strpos($callback, '@') !== false){
+                    list($class, $method) = explode('@', $callback);
+                    $instance = new $class;
+                    call_user_func_array([$instance, $method], $PARAMS_URL);
+                }else if(is_array($callback) && count($callback) == 2){
+                    if(is_string($callback[0])){
+                        $callback[0] = new $callback[0];
+                    }
+                    call_user_func_array($callback, $PARAMS_URL);
+                }else if(is_callable($callback)){
+                    call_user_func_array($callback, $PARAMS_URL);
+                }
+            }
+        }else{
+            if(is_callable($_ERROR)){
+                self::execFn($_ERROR, 'ILEGAL REQUEST_METHOD: '.trim($REQ2));
+            }else{
+                http_response_code(403);
+                die('ILEGAL REQUEST_METHOD '.trim($REQ2));
+            }
+        }
+    }
+}
 
 
 	}
