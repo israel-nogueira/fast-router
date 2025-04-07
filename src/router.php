@@ -3,7 +3,6 @@
 namespace IsraelNogueira\fastRouter;
 use RuntimeException;
 use Closure;
-use Exception;
 
 /**
  * -------------------------------------------------------------------------
@@ -50,7 +49,7 @@ use Exception;
 		|    RETORNA A URL
 		|------------------------------------------------------------------
 		*/
-			static function urlPath($node = null, $debug = true) 
+			static function urlPath2($node = null, $debug = true) 
 			{
 				if (substr($_SERVER['REQUEST_URI'], 0, 1) == '/')
 					$_SERVER['REQUEST_URI'] = substr($_SERVER['REQUEST_URI'], 1, strlen($_SERVER['REQUEST_URI']));
@@ -78,6 +77,78 @@ use Exception;
 					}
 				}
 			}
+static function urlPath($node = null, $debug = true) 
+{
+    if (substr($_SERVER['REQUEST_URI'], 0, 1) == '/'){
+        $_SERVER['REQUEST_URI'] = substr($_SERVER['REQUEST_URI'], 1, strlen($_SERVER['REQUEST_URI']));
+	}
+    
+    $REQUEST_URL = explode('?', $_SERVER['REQUEST_URI']);
+    $url = $REQUEST_URL[0];
+    
+    if (substr($url, -1) == '/'){
+        $url = substr($url, 0, -1);
+	}
+    
+    $GET = explode('/', $url);
+    
+    if ($node === null)
+        return $url;
+    
+    if (is_int($node)) {
+        if ($node > count($GET)) {
+            if ($debug) {
+                throw new RuntimeException("Erro: Não existe path nesta posição ->    self::urlPath(" . $node . ")");
+            } else {
+                return false;
+            }
+        } else {
+            return $GET[($node - 1)];
+        }
+    }
+    
+    if (is_array($node)) {
+        if (count($node) === 1) {
+            $start = $node[0] - 1;
+            if ($start < 0) {
+                $start = count($GET) + $start;
+            }
+            $result = array_slice($GET, $start);
+            if (count($result) == 0) {
+                if ($debug) {
+                    throw new RuntimeException("Erro: O intervalo especificado não existe na URL.");
+                } else {
+                    return false;
+                }
+            } else {
+                return implode('/', $result);
+            }
+        } elseif (count($node) === 2) {
+            $start = $node[0] - 1;
+            $end = $node[1];
+            if ($end < 0) {
+                $end = count($GET) + $end + 1; // Adiciona 1 para incluir o último elemento
+            }
+            $result = array_slice($GET, $start, $end - $start);
+            if (count($result) == 0) {
+                if ($debug) {
+                    throw new RuntimeException("Erro: O intervalo especificado não existe na URL.");
+                } else {
+                    return false;
+                }
+            } else {
+                return implode('/', $result);
+            }
+        } else {
+            throw new RuntimeException("Erro: O array passado para \$node deve conter um ou dois números.");
+        }
+    }
+    
+    throw new RuntimeException("Erro: O parâmetro \$node deve ser null, um número ou um array.");
+}
+
+
+
 
 
 		/*
@@ -87,59 +158,72 @@ use Exception;
 		|	Aqui, qualquer função, classe, método passado será executado
 		|------------------------------------------------------------------
 		*/
-			public static function execFn($function, ...$parameters){	
-
-				
-				if (is_callable($function) || (is_string($function) && function_exists($function))) {
-					return call_user_func_array($function, ($parameters ?? null));
-				}elseif(is_string($function)) {
-					
-					$function = trim($function,'\\');
-					$function = trim($function,'/');
-
-					if (preg_match('/([a-zA-Z0-9_\\\\\/]+)(?:@|::|->)?([a-zA-Z0-9_]*)/', $function, $matches)) {
-						$className = $matches[1];
-						$methodName = !empty($matches[2]) ? $matches[2] : 'index';
-
-						if (class_exists($className)) {
-							if (method_exists($className, $methodName)) {
-								if (strpos($function, '::') !== false) {
-									return call_user_func_array([$className, $methodName], ($parameters ?? []));
-								} else {
-									$object = new $className();
-									return call_user_func_array([$object, $methodName], ($parameters ?? []));
-								}
-							}
-						}else{
-
-
-							$filePath		= realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..');
-							$_ARQUIVO		= $filePath.DIRECTORY_SEPARATOR.str_replace(['\\','/'],DIRECTORY_SEPARATOR,$className);
-
-							if(file_exists($_ARQUIVO.'.php')){
-								require_once $_ARQUIVO.'.php';
-   								$className	= str_replace('\\', '/', $className);
-								$classe		= basename($className);
-
-								if (class_exists($classe)) {
-									if (method_exists($classe, $methodName)) {
-										if (strpos($function, '::') !== false) {
-											return call_user_func_array([$classe, $methodName], ($parameters ?? []));
-										} else {
-											$object = new $classe();
-											return call_user_func_array([$object, $methodName], ($parameters ?? []));
-										}
-									}
-								}else{
-									throw new Exception('"'.$className.'" not found');
+			public static function execFn($function, ...$parameters)
+			{	
+				if (is_callable($function)) {
+					// Verifica se é uma função ou método estático
+					if (is_string($function)) {
+						// Verifica se é uma função global
+						if (function_exists($function)) {
+							return call_user_func_array($function, $parameters);
+						} else {
+							// Verifica se é um método estático de classe
+							if (strpos($function, '::') !== false) {
+								list($class, $method) = explode('::', $function);
+								if (class_exists($class) && method_exists($class, $method)) {
+									return call_user_func_array($function, $parameters);
 								}
 							}
 						}
+					} elseif (is_array($function) && count($function) == 2) {
+						// Verifica se é um método de objeto
+						list($object, $method) = $function;
+						if (is_object($object) && method_exists($object, $method)) {
+							return call_user_func_array([$object, $method], $parameters);
+						}
+					} else {
+						$function($parameters);
 					}
+				} elseif (is_string($function) && strpos($function, '@') !== false) {
+					// Verifica se é uma string com "@" para chamar uma função de classe
+					list($class, $method) = explode('@', $function);
+					if (class_exists($class) && method_exists($class, $method)) {
+						$object = new $class();
 
-				} else {
-					throw new Exception('Function or method not found');
-				}			
+						return call_user_func_array([$object, $method], $parameters);						
+					} else {
+						// Verifica se a classe foi declarada antes de utilizar o autoload
+						if (!class_exists($class)) {
+
+							$filePath = realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..') . DIRECTORY_SEPARATOR;
+							$pattern = $class . '.*.php';
+							$fileList = glob($filePath . $pattern);
+							if (empty($fileList)) {
+								$pattern = $class . '.php';
+								$fileList = glob($filePath . $pattern);
+							}
+							spl_autoload_register(function ($className)use($fileList) {
+								if(count($fileList)>0){
+									foreach($fileList as $file){
+										require_once $file;
+									}
+								}
+							});
+
+							if (class_exists($class) && method_exists($class, $method)) {
+								$object = new $class();
+								return call_user_func_array([$object, $method], $parameters);
+							}
+						}
+					}
+				} elseif (is_string($function) && strpos($function, '\\') !== false) {
+					// Verifica se é uma string com "\\" para chamar uma função de namespace
+					if (function_exists($function)) {
+						return call_user_func_array($function, $parameters);
+					}
+				}
+
+				// throw new Exception('Function or method not found');
 			}
 
 
@@ -359,8 +443,7 @@ use Exception;
 		|	MIDDLEWARES
 		|-------------------------------------------------------------------
 		*/
-			private static function middlewares($middlewares, $callback, $return = [])
-			{
+			private static function callMiddleware2($middlewares, $callback, $return = []){
 				$middlewares = (!is_array($middlewares)) ? [$middlewares] : $middlewares;
 				$next = $callback;
 				if (!is_callable($next) || !($next instanceof Closure)) {$next = function () {};}
@@ -409,6 +492,70 @@ use Exception;
 			}
 
 
+			private static function callMiddleware($middlewares, $callback, $return = []) {
+				// Garantir que `$middlewares` seja um array
+				$middlewares = is_array($middlewares) ? $middlewares : [$middlewares];
+
+				// Garantir que `$next` seja um callback válido
+				$next = is_callable($callback) ? $callback : fn() => null;
+
+				// Iterar sobre os middlewares em ordem inversa
+				foreach (array_reverse($middlewares) as $middleware) {
+					if (is_callable($middleware)) {
+						// Middleware é uma função anônima ou callable
+						$next = fn($return) => $middleware($return, $next);
+					} else {
+						// Resolver middlewares no formato `Class@method`
+						[$middleware_class, $middleware_method] = explode('@', $middleware) + [1 => 'handle'];
+
+						if (class_exists($middleware_class)) {
+							// Resolver método da classe
+							$middleware_object = new $middleware_class();
+							if (method_exists($middleware_object, $middleware_method)) {
+								$next = fn($return) => $middleware_object->$middleware_method($return, $next);
+							}
+						} elseif (self::loadMiddlewareFile($middleware_class)) {
+							// Middleware encontrado em arquivo externo
+							$middleware_object = new $middleware_class();
+							if (method_exists($middleware_object, $middleware_method)) {
+								$next = fn($return) => $middleware_object->$middleware_method($return, $next);
+							}
+						}
+					}
+				}
+
+				// Executar o primeiro middleware da cadeia
+				return $next($return);
+			}
+
+			private static function loadMiddlewareFile($middleware_class) {
+				$filePath	= realpath(__DIR__ . '/../../../../');
+				$pattern	= $filePath . DIRECTORY_SEPARATOR . $middleware_class . '*.php';
+				$files		= glob($pattern);
+
+				if (empty($files)) {
+					$files = glob($filePath . $middleware_class . '.php');
+				}
+
+				foreach ($files as $file) {
+					require_once $file;
+				}
+
+				return class_exists($middleware_class);
+			}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 		/*
@@ -429,30 +576,31 @@ use Exception;
 				return ($MODEL_VALIDO && $RANGE1==$RANGE2);
 			}
 
-			public static function group($_GRUPO, $_ROUTERS=NULL)
-			{
-				if(is_array($_GRUPO)){
-					if(isset($_GRUPO['prefix'])){
-						array_push(self::$group_routers, $_GRUPO['prefix']);
-						if(self::verifyGroup($_GRUPO['prefix'])){
-							if(isset($_GRUPO['middleware'])){
-								self::middlewares($_GRUPO['middleware'], function($retornos)use($_ROUTERS){
+			public static function group($config, $callback=null,$group=null){
 
-									if (is_callable($_ROUTERS)) {
-										$_ROUTERS($retornos);
+				if(is_array($config) || !is_null($group)){
+					if(isset($config['prefix']) || !is_null($group)){
+
+						array_push(self::$group_routers, ($group??$config['prefix']));
+						if(self::verifyGroup(($group??$config['prefix']))){
+							if(isset($config['middleware'])){
+
+								self::callMiddleware($config['middleware'], function($retornos)use($callback){
+									if (is_callable($callback)) {
+										$callback($retornos);
 										array_pop(self::$group_routers);
 										return new static;
 									}
 								});
 							}else{
-								if (is_callable($_ROUTERS)) {
-									$_ROUTERS();
+								if (is_callable($callback)) {
+									$callback();
 									array_pop(self::$group_routers);
 									return new static;
 								}
 							}
 						}else{
-							array_pop(self::$group_routers);
+							self::$group_routers = [];
 							return new static;
 						}
 					}
@@ -465,7 +613,7 @@ use Exception;
 							return new static;
 						}
 					}else{
-						array_pop(self::$group_routers);
+						self::$group_routers = [];
 						return new static;
 					}
 
@@ -511,17 +659,24 @@ use Exception;
 		*/
 			public static function send($_REQUEST_METHOD="GET",$_PATH=null,$_SUCESS=null, $_ERROR=null)
 			{
+
 				if(is_array($_PATH)){
 					if(isset($_PATH['middleware'])){
-						self::middlewares($_PATH['middleware'], function($retornos)use($_PATH,$_REQUEST_METHOD, $_SUCESS,$_ERROR){
+						self::callMiddleware($_PATH['middleware'], function($retornos)use($_PATH,$_REQUEST_METHOD, $_SUCESS,$_ERROR){
+							self::route($_PATH['prefix']);
 							self::$middleware =$retornos;
+							return self::request($_REQUEST_METHOD,$_SUCESS,$_ERROR);
 						});
+					}
+
+					if(isset($_PATH['prefix'])){
+						$_PATH = $_PATH['prefix'];
 					}
 				}
 
-				if(isset($_PATH['prefix'])){$_PATH = $_PATH['prefix'];}
 				self::route($_PATH);
 				return self::request($_REQUEST_METHOD,$_SUCESS,$_ERROR);
+
 			}
 
 
@@ -540,6 +695,7 @@ use Exception;
 		*/
 			public static function request($_REQUEST_METHOD=null,$_SUCESS=null,$_ERROR=null)
 			{
+
 				if(self::$handler['status']==true){
 					$PARAMS_URL = array_values(self::$handler['params']);
 					if(is_array($_SUCESS)){
