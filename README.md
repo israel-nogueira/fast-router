@@ -267,12 +267,12 @@ Se a caso você tiver uma classe de controller chamada `controllerClass.php`, e 
 	// Variáveis ID e NOME podem ser passadas como parâmetros
 	//-------------------------------------------------------
 
-    router::get([
-			'prefix'=>'admin/produtos/{ID}',
-			'middleware'=>["path/middleware1.php","path/middleware2.php"]
-		], 
-		"path1\\path2\\controllerClass@getProdutos"  // <==== aqui
-	);	
+		router::get([
+				'prefix'=>'admin/produtos/{ID}',
+				'middleware'=>["path/middleware1.php","path/middleware2.php"]
+			], 
+			"path1\\path2\\controllerClass@getProdutos"  // <==== aqui
+		);	
 ?>
 ```
 
