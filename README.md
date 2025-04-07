@@ -226,7 +226,7 @@ Cada função é definida de maneira que a próxima é executada apenas se a atu
 	|-----------------------------------------------------------------------------------
 	|*/
 	
-		router::get('admin/{id:\d+}[/{{title}}/]', function ($id,$title) {});
+		router::get('admin/{id:\d+}[/{title}/]', function ($id,$title) {});
 	
 	/*
 	|-----------------------------------------------------------------------------------
@@ -235,7 +235,7 @@ Cada função é definida de maneira que a próxima é executada apenas se a atu
 	| 
 	| Isso quer dizer que apenas o admin, id e nome são obrigatórios. 
 	| Quanto ao enclousuramento ficará com o formato [/{param}/] com barra no inicio e no fim;  
-	| Enclosurando fica: [/{{nome}}[/{{sobrenome}}/]/]
+	| Enclosurando fica: [/{nome}[/{sobrenome}/]/]
 	| Para facilitar a visualização será algo mais ou menos assim:
 	| [/ param1 
 	|	[/ param1 
@@ -247,7 +247,12 @@ Cada função é definida de maneira que a próxima é executada apenas se a atu
 	-------------------------------------------------------------------------------------
 	*/
 
-		router::post('admin/{id:\d+}[/{{title}}[/{{length}}[/{{last}}/]/]/]', function ($id,$title,$length,$last) {});
+
+		router::post(
+			'admin/{id:\d+}[/{title}[/{length}[/{last}/]/]/]', 
+			function ($id=null,$title=null,$length=null,$last=null) {
+			
+			});
 	
 ?>
 ```
