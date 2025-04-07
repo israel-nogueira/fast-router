@@ -247,21 +247,33 @@ Cada função é definida de maneira que a próxima é executada apenas se a atu
 	-------------------------------------------------------------------------------------
 	*/
 
-
-		router::post(
-			'admin/{id:\d+}[/{title}[/{length}[/{last}/]/]/]', 
-			function ($id=null,$title=null,$length=null,$last=null) {
-			
-			});
+		$_ROUTER = 'admin/{id:\d+}[/{title}[/{length}[/{last}/]/]/]';
+		// Atenção, não esqueça de inserir "null" para evitar erros 
+		router::post($_ROUTER, function($id=null,$title=null,$length=null,$last=null) {});
 	
 ?>
 ```
 
 
+# RETORNO DE CLASSE
+Se a caso você tiver uma classe de controller chamada `controllerClass.php`, e nesse controller existir uma função chamada `getProdutos` poderá inserir pelo namespace e o nome do método dessa forma:
 
+```php
+<?php
+	use IsraelNogueira\fastRouter\router;
 
+	//-------------------------------------------------------
+	// Variáveis ID e NOME podem ser passadas como parâmetros
+	//-------------------------------------------------------
 
-
+    router::get([
+				'prefix'=>'admin/produtos/{ID}',
+				'middleware'=>["path/middleware1.php","path/middleware2.php"]
+			], 
+			"path1\\path2\\controllerClass@getProdutos"  // <==== aqui
+		);	
+?>
+```
 
 
 
