@@ -257,9 +257,15 @@ Cada função é definida de maneira que a próxima é executada apenas se a atu
 
 
 # RETORNO DE CLASSE
-Se a caso você tiver uma classe de controller chamada `controllerClass.php`, e a função de callback pode ser passada e formato de classes.
-Note que podemos também executar multiplos retornos.
+Note que podemos executar multiplos callbacks.
 Todos eles processarão os parametros da rota como parametros da function.
+
+- `'functionLocal'` → Nome da função local como string.
+- `'\path1\path2\controllerClass@callback1'` → Nome da classe + método separado por `@`.
+- `[\path1\path2\controllerClass::class, 'callback3']` → Array com Classe::class e método.
+- `function($ID = null, $PARAM = null){}` → Função anônima (Closure).
+
+
 ```php
 <?php
 	use IsraelNogueira\fastRouter\router;
@@ -269,14 +275,14 @@ Todos eles processarão os parametros da rota como parametros da function.
 	//-------------------------------------------------------
 
 		router::get([
-				'prefix'=>'admin/produtos/{ID}',
-				'middleware'=>[] // middlewares (explicado acima)
-			], 
-			[
-				"path1\path2\controllerClass@callback1", 
-				function($ID=null){ print_r($DIE); },
-				"path1\path2\controllerClass@callback3",  
-				"path1\path2\controllerClass@callback4", 
+				'prefix'=>'admin/produtos/{ID}',// URL
+				'middleware'=>[] 				// middlewares (explicado acima)
+			], [
+				'functionLocal',
+				'\path1\path2\controllerClass@callback1',  
+				\path1\path2\controllerClass::callback2(),
+				[\path1\path2\controllerClass::class,'callback3'],
+				function ($ID = null, $PARAM = null){ print_r([$ID, $PARAM]); }
 			]
 		);	
 ?>

@@ -693,44 +693,8 @@ static function urlPath($node = null, $debug = true)
 		|   Parametros: (string, function, function)  
 		|
 		*/
-			public static function request2($_REQUEST_METHOD=null,$_SUCESS=null,$_ERROR=null)
-			{
 
-				if(self::$handler['status']==true){
-					$PARAMS_URL = array_values(self::$handler['params']);
-					if(is_array($_SUCESS)){
-						$_CALLBACK = $_SUCESS[0];
-						array_shift($_SUCESS);
-						if(count($_SUCESS)>0){
-								$_PARAMS = [...$PARAMS_URL, ...$_SUCESS];  
-						}else{
-							$_PARAMS	= $PARAMS_URL;
-						}
-					}else{
-						$_PARAMS	= $PARAMS_URL;
-						$_CALLBACK	= $_SUCESS;
-					}
-
-					$REQ1 = (!is_array($_REQUEST_METHOD))?[strtoupper(trim($_REQUEST_METHOD))]:$_REQUEST_METHOD;
-					$REQ2 = strtoupper(trim($_SERVER['REQUEST_METHOD']));
-					if(  
-						in_array($REQ2,$REQ1 ) || 
-						$REQ1[0]=='ANY'	
-					){
-
-						self::execFn($_CALLBACK,...$_PARAMS);
-						 
-					}else{
-						if (is_callable($_ERROR)) {
-							self::execFn($_ERROR,'ILEGAL REQUEST_METHOD: '.trim($REQ2));
-						}else{
-							http_response_code(403);
-							die('ILEGAL REQUEST_METHOD '.trim($REQ2));
-						}
-					}
-				}
-			}
-			public static function request($_REQUEST_METHOD=null,$_SUCESS=null,$_ERROR=null){
+			public static function request($_REQUEST_METHOD=null, $_SUCESS=null, $_ERROR=null){
 				static $executed = false;
 				if(self::$handler['status']==true && !$executed){
 					$executed = true;
@@ -738,12 +702,20 @@ static function urlPath($node = null, $debug = true)
 					$REQ1 = (!is_array($_REQUEST_METHOD)) ? [strtoupper(trim($_REQUEST_METHOD))] : $_REQUEST_METHOD;
 					$REQ2 = strtoupper(trim($_SERVER['REQUEST_METHOD']));
 					if(in_array($REQ2, $REQ1) || $REQ1[0]=='ANY'){
-						if(is_array($_SUCESS)){
-							foreach($_SUCESS as $callback){
-								self::execFn($callback, ...$PARAMS_URL);
+						$callbacks = is_array($_SUCESS) ? $_SUCESS : [$_SUCESS];
+						foreach($callbacks as $callback){
+							if(is_string($callback) && strpos($callback, '@') !== false){
+								list($class, $method) = explode('@', $callback);
+								$instance = new $class;
+								call_user_func_array([$instance, $method], $PARAMS_URL);
+							}else if(is_array($callback) && count($callback) == 2){
+								if(is_string($callback[0])){
+									$callback[0] = new $callback[0];
+								}
+								call_user_func_array($callback, $PARAMS_URL);
+							}else if(is_callable($callback)){
+								call_user_func_array($callback, $PARAMS_URL);
 							}
-						}else{
-							self::execFn($_SUCESS, ...$PARAMS_URL);
 						}
 					}else{
 						if(is_callable($_ERROR)){
@@ -755,7 +727,6 @@ static function urlPath($node = null, $debug = true)
 					}
 				}
 			}
-
 
 
 	}
