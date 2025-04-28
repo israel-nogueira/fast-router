@@ -49,25 +49,27 @@ use Closure;
 		|    RETORNA A URL
 		|------------------------------------------------------------------
 		*/
-			static function urlPath2($node = null, $debug = true) 
-			{
-				if (substr($_SERVER['REQUEST_URI'], 0, 1) == '/')
+
+			static function urlPath($node = null, $debug = true) {
+				if (substr($_SERVER['REQUEST_URI'], 0, 1) == '/'){
 					$_SERVER['REQUEST_URI'] = substr($_SERVER['REQUEST_URI'], 1, strlen($_SERVER['REQUEST_URI']));
-				if (is_string($node)) {
-					throw new RuntimeException("Erro: Isso não é um número ->    self::urlPath('" . $node . "')");
-				} elseif ($node == null && $node == 0) {
-					$REQUEST_URL = explode('?', $_SERVER['REQUEST_URI']);
-					$url         = $REQUEST_URL[0];
+				}
+				
+				$REQUEST_URL = explode('?', $_SERVER['REQUEST_URI']);
+				$url = $REQUEST_URL[0];
+				
+				if (substr($url, -1) == '/'){
+					$url = substr($url, 0, -1);
+				}
+				
+				$GET = explode('/', $url);
+				
+				if ($node === null)
 					return $url;
-				} else {
-					$REQUEST_URL = explode('?', $_SERVER['REQUEST_URI']);
-					$url         = $REQUEST_URL[0];
-					if (substr($url, -1) == '/') {
-						$url = substr($url, 0, -1);
-					}
-					$GET = explode('/', $url);
+				
+				if (is_int($node)) {
 					if ($node > count($GET)) {
-						if ($debug == true) {
+						if ($debug) {
 							throw new RuntimeException("Erro: Não existe path nesta posição ->    self::urlPath(" . $node . ")");
 						} else {
 							return false;
@@ -76,78 +78,46 @@ use Closure;
 						return $GET[($node - 1)];
 					}
 				}
+				
+				if (is_array($node)) {
+					if (count($node) === 1) {
+						$start = $node[0] - 1;
+						if ($start < 0) {
+							$start = count($GET) + $start;
+						}
+						$result = array_slice($GET, $start);
+						if (count($result) == 0) {
+							if ($debug) {
+								throw new RuntimeException("Erro: O intervalo especificado não existe na URL.");
+							} else {
+								return false;
+							}
+						} else {
+							return implode('/', $result);
+						}
+					} elseif (count($node) === 2) {
+						$start = $node[0] - 1;
+						$end = $node[1];
+						if ($end < 0) {
+							$end = count($GET) + $end + 1; // Adiciona 1 para incluir o último elemento
+						}
+						$result = array_slice($GET, $start, $end - $start);
+						if (count($result) == 0) {
+							if ($debug) {
+								throw new RuntimeException("Erro: O intervalo especificado não existe na URL.");
+							} else {
+								return false;
+							}
+						} else {
+							return implode('/', $result);
+						}
+					} else {
+						throw new RuntimeException("Erro: O array passado para \$node deve conter um ou dois números.");
+					}
+				}
+				
+				throw new RuntimeException("Erro: O parâmetro \$node deve ser null, um número ou um array.");
 			}
-static function urlPath($node = null, $debug = true) 
-{
-    if (substr($_SERVER['REQUEST_URI'], 0, 1) == '/'){
-        $_SERVER['REQUEST_URI'] = substr($_SERVER['REQUEST_URI'], 1, strlen($_SERVER['REQUEST_URI']));
-	}
-    
-    $REQUEST_URL = explode('?', $_SERVER['REQUEST_URI']);
-    $url = $REQUEST_URL[0];
-    
-    if (substr($url, -1) == '/'){
-        $url = substr($url, 0, -1);
-	}
-    
-    $GET = explode('/', $url);
-    
-    if ($node === null)
-        return $url;
-    
-    if (is_int($node)) {
-        if ($node > count($GET)) {
-            if ($debug) {
-                throw new RuntimeException("Erro: Não existe path nesta posição ->    self::urlPath(" . $node . ")");
-            } else {
-                return false;
-            }
-        } else {
-            return $GET[($node - 1)];
-        }
-    }
-    
-    if (is_array($node)) {
-        if (count($node) === 1) {
-            $start = $node[0] - 1;
-            if ($start < 0) {
-                $start = count($GET) + $start;
-            }
-            $result = array_slice($GET, $start);
-            if (count($result) == 0) {
-                if ($debug) {
-                    throw new RuntimeException("Erro: O intervalo especificado não existe na URL.");
-                } else {
-                    return false;
-                }
-            } else {
-                return implode('/', $result);
-            }
-        } elseif (count($node) === 2) {
-            $start = $node[0] - 1;
-            $end = $node[1];
-            if ($end < 0) {
-                $end = count($GET) + $end + 1; // Adiciona 1 para incluir o último elemento
-            }
-            $result = array_slice($GET, $start, $end - $start);
-            if (count($result) == 0) {
-                if ($debug) {
-                    throw new RuntimeException("Erro: O intervalo especificado não existe na URL.");
-                } else {
-                    return false;
-                }
-            } else {
-                return implode('/', $result);
-            }
-        } else {
-            throw new RuntimeException("Erro: O array passado para \$node deve conter um ou dois números.");
-        }
-    }
-    
-    throw new RuntimeException("Erro: O parâmetro \$node deve ser null, um número ou um array.");
-}
-
-
 
 
 
@@ -158,8 +128,7 @@ static function urlPath($node = null, $debug = true)
 		|	Aqui, qualquer função, classe, método passado será executado
 		|------------------------------------------------------------------
 		*/
-			public static function execFn($function, ...$parameters)
-			{	
+			public static function execFn($function, ...$parameters){	
 				if (is_callable($function)) {
 					// Verifica se é uma função ou método estático
 					if (is_string($function)) {
@@ -234,8 +203,7 @@ static function urlPath($node = null, $debug = true)
 		|	Criamos o regex que será validado na sequencia 
 		|------------------------------------------------------------------
 		*/
-			public static function gerarRegex( $rota )
-			{
+			public static function gerarRegex( $rota ){
 				$rota             = str_replace( ["{","}"], ["｛", "｝"], $rota );
 				$regex_parametros = "/｛(?'chamada'((((((?'parametro'([a-z0-9\_,]+))\:)?(?'valor'([^｛｝]+))))|(?R))*))｝/";
 				$regex_final      = '';
@@ -268,8 +236,7 @@ static function urlPath($node = null, $debug = true)
 		|	Tratamos os parâmetros da rota 
 		|-------------------------------------------------------------------
 		*/
-			public function formatParamsRoute( $match )
-			{
+			public function formatParamsRoute( $match ){
 				$novo = $match[0];
 				$novo = str_replace( ["｛","｝"], ["(",")"], $novo );
 				if( isset( $match['parametro'] ) && !empty( $match['parametro'] ) ){
@@ -288,8 +255,7 @@ static function urlPath($node = null, $debug = true)
 		|    caso a URL esteja correta e dentro do que espera-se
 		|-------------------------------------------------------------------
 		*/
-			static public function parametrosRota($_ROTA,$FAKE_ROUTE=NULL)
-			{
+			static public function parametrosRota($_ROTA,$FAKE_ROUTE=NULL){
 				$_REGEX = self::gerarRegex(trim($_ROTA,'/'));
 				if (preg_match($_REGEX, ($FAKE_ROUTE??self::urlPath()), $resultado)) {
 					foreach ($resultado as $k => $_VALOR) {
@@ -323,9 +289,6 @@ static function urlPath($node = null, $debug = true)
 				}
 			}
 			
-
-
-
 		/*
 		|------------------------------------------------------------------
 		|	FILTRANDO OS PARÂMETROS
@@ -336,8 +299,7 @@ static function urlPath($node = null, $debug = true)
 		|
 		|
 		*/
-			public function filterParameters($_PARAMS)
-			{
+			public function filterParameters($_PARAMS){
 				if ($_SERVER['REQUEST_METHOD'] == 'PUT') {
 					parse_str(file_get_contents("php://input"), $_PUT);
 					foreach ($_PUT as $key => $value) {
@@ -366,8 +328,7 @@ static function urlPath($node = null, $debug = true)
 		|
 		|
 		*/
-			public function requireParameters($_PARAMS,$_ERROR=null)
-			{
+			public function requireParameters($_PARAMS,$_ERROR=null){
 				if(is_array($_PARAMS) && count($_PARAMS)>0){
 					if ($_SERVER['REQUEST_METHOD'] == 'GET')	{$_PARAMETROS = array_intersect_key($_GET,array_flip($_PARAMS));}
 					if ($_SERVER['REQUEST_METHOD'] == 'POST')	{$_PARAMETROS = array_intersect_key($_POST,array_flip($_PARAMS));}
@@ -401,8 +362,7 @@ static function urlPath($node = null, $debug = true)
 		|
 		*/
 
-			public function function($_FUNCTIONS=null,$_ERRO=null)
-			{
+			public function function($_FUNCTIONS=null,$_ERRO=null){
 				$_FUNCTIONS= (is_string($_FUNCTIONS) && !is_numeric($_FUNCTIONS) ) ? [$_FUNCTIONS] : ((is_array($_FUNCTIONS))? $_FUNCTIONS : null);
 				if (count($_FUNCTIONS)>0) {
 					if (isset($_REQUEST['function']) && !in_array($_REQUEST['function'], $_FUNCTIONS)) {
@@ -424,8 +384,7 @@ static function urlPath($node = null, $debug = true)
 		|
 		|
 		*/
-			public static function route($_ROTA,$FAKE_ROUTE=NULL)
-			{
+			public static function route($_ROTA,$FAKE_ROUTE=NULL){
 					$full_route = "";
 					foreach (self::$group_routers as $group) {
 						$full_route .= $group . '/';
@@ -443,55 +402,6 @@ static function urlPath($node = null, $debug = true)
 		|	MIDDLEWARES
 		|-------------------------------------------------------------------
 		*/
-			private static function callMiddleware2($middlewares, $callback, $return = []){
-				$middlewares = (!is_array($middlewares)) ? [$middlewares] : $middlewares;
-				$next = $callback;
-				if (!is_callable($next) || !($next instanceof Closure)) {$next = function () {};}
-				foreach (array_reverse($middlewares) as $middleware) {
-					$middle =  $middleware;
-					if (is_callable($middleware)) {
-						$next = fn($return) => call_user_func($middleware, $return, $next);
-					} else {
-						[$middleware_class, $middleware_method] = explode('@', $middleware) + [1 => 'handle'];
-
-						if (is_callable([$middleware_class, $middleware_method])) {
-							$next = fn($return) => call_user_func([$middleware_class, $middleware_method], $return, $next);
-						} elseif (is_subclass_of($middleware_class, self::class)) {
-							$middleware_instance = new $middleware_class;
-							$next = fn($return) => call_user_func([$middleware_instance, $middleware_method], $return, $next);
-						} elseif (method_exists(static::class, $middleware_method)) {
-							$next = fn($return) => call_user_func([static::class, $middleware_method], $return, $next);
-						} elseif (method_exists(get_called_class(), $middleware_method)) {
-							$next = fn($return) => call_user_func([get_called_class(), $middleware_method], $return, $next);
-						} else {
-
-							$filePath = realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..') . DIRECTORY_SEPARATOR;
-							
-							$pattern = $middleware_class . '.*.php';
-							$fileList = glob($filePath . $pattern);
-
-							if (empty($fileList)) {
-								$pattern = $middleware_class . '.php';
-								$fileList = glob($filePath . $pattern);
-							}
-
-							if (count($fileList) > 0) {
-								foreach ($fileList as $file) {
-									require_once $file;
-								}
-							}
-
-							if (class_exists($middleware_class) && method_exists($middleware_class, $middleware_method)) {
-								$middleware_object = new $middleware_class();
-								$next = fn($return) => call_user_func([$middleware_object, $middleware_method], $return, $next);
-							}
-						}
-					}
-				}
-				$next($return, $next);
-			}
-
-
 			private static function callMiddleware($middlewares, $callback, $return = []) {
 				// Garantir que `$middlewares` seja um array
 				$middlewares = is_array($middlewares) ? $middlewares : [$middlewares];
