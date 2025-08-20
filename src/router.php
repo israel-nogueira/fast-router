@@ -17,18 +17,193 @@ use Closure;
  */
 	class router{
 		
-		public static $group_routers	= [];
-		public static $middleware		= [];
-		public static $handler 			= null;
-		public function __construct()	{}
+		public static $group_routers	=	[];
+		public static $middleware		=	[];
+		public static $handler 			=	null;
+    	private $currentGroupStack		=	[];
+		public $paths_instances			=	[];
+		public $middlewareInstance		=	[];
+		public $handlerInstance			=	null;
+		public $group_routersInstance	=	[]; 
 
+		/**-------------------------------------------------
+		 * 	MODO INSTANCIADO
+		 * -------------------------------------------------
+		 *  PRIMEIRO INSTANCIA TUDO PARA DEPOIS PROCESSAR
+		 * $_ROTA = new router();
+		 * $_ROTA->group([],'');
+		 * $_ROTA->post([],'');
+		 * $_ROTA->get([],'');
+		 * $_ROTA->any([],'');
+		 * $_ROTA->processa(); <---- apenas aqui processa
+		 * -------------------------------------------------*/
+		public function __call($name, $arguments){
+			if ($name === 'group') { 
+				$name = 'groupInstance'; 
+				return $this->groupInstance(...$arguments);
+			}
+			$callback = end($arguments);
+			$options = $arguments[0] ?? [];
+			$route = [
+				'type' => 'route',
+				'method' => $name,
+				'options' => $options,
+				'callback' => $callback
+			];
+			if (!empty($this->currentGroupStack)) {
+				$parent = &$this->currentGroupStack[count($this->currentGroupStack) - 1];
+				$parent['children'][] = $route;
+			} else {
+				$this->paths_instances[] = $route;
+			}
+			return $this;
+			
+		}
+
+		public function groupInstance($config, $callback = null) {
+			$prefix = $config['prefix'] ?? null;
+
+			$group = [
+				'type' => 'group',
+				'method' => 'GROUP',
+				'options' => [
+					'prefix' => $prefix,
+					'middleware' => $config['middleware'] ?? [],
+					'callback' => $callback
+				],
+				'children' => []
+			];
+
+			// Se houver grupo ativo, adiciona como filho
+			if (!empty($this->currentGroupStack)) {
+				$parent = &$this->currentGroupStack[count($this->currentGroupStack)-1];
+				$parent['children'][] = &$group;
+			} else {
+				$this->paths_instances[] = &$group;
+			}
+
+			// Empilha o grupo atual e executa o callback (sem execução real ainda)
+			$this->currentGroupStack[] = &$group;
+			if (is_callable($callback)) {
+				$callback($group); // aqui ainda não processa nada, só estrutura
+			}
+			array_pop($this->currentGroupStack); // remove do stack
+
+			return $group;
+		}
+
+		private function collectPath(array $path, $prefix = '') {
+			$currentPrefix = $path['options']['prefix'] ?? '';
+			$fullPrefix = $prefix ? trim($prefix, '/') . '/' . trim($currentPrefix, '/') : trim($currentPrefix, '/');
+
+			if ($path['type'] === 'route') {
+				return [[
+					'method' => $path['method'],
+					'options' => $path['options'],
+					'callback' => $path['callback'],
+					'full_prefix' => $fullPrefix
+				]];
+			}
+
+			if ($path['type'] === 'group') {
+				$routes = [];
+				$children = $path['children'];
+
+				if ($children instanceof \Closure) {
+					$subRouter = new self();
+					$boundClosure = $children->bindTo($subRouter, $subRouter);
+					$boundClosure();
+					$children = $subRouter->paths_instances ?? [];
+				}
+
+				foreach ($children as $child) {
+					$routes = array_merge($routes, $this->collectPath($child, $fullPrefix));
+				}
+
+				return $routes;
+			}
+
+			return [];
+		}
+
+		public function collectPathWithMiddleware($node, $parentMiddlewares = [], $parentPrefix = '') {
+			$result = [];
+			// acumula os middlewares do grupo atual
+			$currentMiddlewares = $parentMiddlewares;
+			if (!empty($node['options']['middleware'])) {
+				$currentMiddlewares = array_merge($currentMiddlewares, $node['options']['middleware']);
+			}
+			// acumula o prefix completo
+			$currentPrefix = rtrim($parentPrefix . '/' . ltrim($node['options']['prefix'] ?? '', '/'), '/');
+
+			if ($node['type'] === 'route') {
+				$node['all_middlewares'] = $currentMiddlewares;
+				$node['full_prefix'] = $currentPrefix;
+				$result[] = $node;
+			}
+
+			if (!empty($node['children'])) {
+				foreach ($node['children'] as $child) {
+					$result = array_merge($result, $this->collectPathWithMiddleware($child, $currentMiddlewares, $currentPrefix));
+				}
+			}
+
+			return $result;
+		}
+
+		public function processa() {
+			foreach ($this->paths_instances as $value) {
+				$routes = $this->collectPathWithMiddleware($value, [], '');
+				foreach ($routes as $route) {
+					if (!isset($route['callback'])) continue;
+					$parametros = $this->parametrosRotaInstance($route['full_prefix'], null);
+					$sonsolidado = ['status'=>$parametros['status'],'setada'=>$parametros['setada'],'params'=>$parametros['params'],'regex'=>$parametros['regex'],'method'=>$route['method'],'full_prefix'=>$route['full_prefix'],'all_middlewares'=>$route['all_middlewares'],'callback'=>$route['callback']];
+					if (empty($parametros['status'])) continue;
+					$this->sendInstanceConsolidado($sonsolidado);
+					break 2;
+				}
+			}
+		}
+
+		public function sendInstanceConsolidado(array $route) {
+			$middlewares = $route['all_middlewares'] ?? [];
+			$params = $route['params'] ?? [];
+			$callback = $route['callback'] ?? null;
+			if (!empty($middlewares)) {
+				$this->callMiddlewareInstance($middlewares, function($retornos) use ($callback, $params) {
+					$this->middlewareInstance = $retornos;
+					if ($callback) {
+						$this->execFnInstance($callback, ...array_values($params));
+					}
+				});
+			} elseif ($callback) {
+				$this->execFnInstance($callback, ...array_values($params));
+			}
+		}
+
+
+		/**-----------------------------------------------------------
+		 *	MODO ESTATICO
+		 * -----------------------------------------------------------
+		 * 	 AQUI JÁ PROCESSA DIRETO NA EXECUÇÃO.
+		 * 
+		 *   router::group([],function(){});
+		 *   router::get([],function(){});
+		 *   router::post([],function(){});
+		 *   router::any([],function(){});
+		 * 
+		 * 
+		 * ----------------------------------------------------------- */
 		/*
 		|------------------------------------------------------------------
 		|    __CALLSTATIC
 		|------------------------------------------------------------------
 		*/
-			public static function __callStatic($name, $arguments)
-			{
+			public static function __callStatic($name, $arguments){
+				if($name=='group'){
+					return self::groupStatic(...$arguments);
+				}
+
 				if (in_array(strtoupper($name), ['ANY','MATH','GET', 'REDIRECT','POST','RMDIR','MKDIR','INDEX','MOVE','TRACE','DELETE','TRACK','PUT','HEAD','OPTIONS','CONNECT'])) {
 					if(strtoupper($name)=='MATH' && is_array($arguments[0])){
 						$name = $arguments[0];
@@ -195,6 +370,34 @@ use Closure;
 				// throw new Exception('Function or method not found');
 			}
 
+			public function execFnInstance($function, ...$parameters) {
+				if (is_callable($function)) {
+					if (is_string($function)) {
+						if (function_exists($function)) {
+							return call_user_func_array($function, $parameters);
+						} elseif (strpos($function, '::') !== false) {
+							list($class, $method) = explode('::', $function);
+							if (class_exists($class) && method_exists($class, $method)) {
+								return call_user_func_array($function, $parameters);
+							}
+						}
+					} elseif (is_array($function) && count($function) == 2) {
+						list($object, $method) = $function;
+						if (is_object($object) && method_exists($object, $method)) {
+							return call_user_func_array([$object, $method], $parameters);
+						}
+					} else {
+						return $function($parameters);
+					}
+				} elseif (is_string($function) && strpos($function, '@') !== false) {
+					list($class, $method) = explode('@', $function);
+					if (class_exists($class) && method_exists($class, $method)) {
+						$object = new $class();
+						return call_user_func_array([$object, $method], $parameters);
+					}
+				}
+			}
+
 
 		/*
 		|------------------------------------------------------------------
@@ -227,7 +430,6 @@ use Closure;
 				$regex_final = '/^' . $regex_final . '(\/)?$/';
 				return $regex_final;
 			} 
-
 
 		/*
 		|------------------------------------------------------------------
@@ -288,6 +490,40 @@ use Closure;
 					];
 				}
 			}
+
+			public function parametrosRotaInstance($_ROTA,$FAKE_ROUTE=NULL){
+				$_REGEX = self::gerarRegex(trim($_ROTA,'/'));
+				if (preg_match($_REGEX, ($FAKE_ROUTE??self::urlPath()), $resultado)) {
+					foreach ($resultado as $k => $_VALOR) {
+						if (is_numeric($k)) {
+							unset($resultado[$k]);
+						} else {
+							if (preg_match("/___/", $k)) {
+								$parametro = explode("___", $k);
+								unset($resultado[$k]);
+								$_CHAVE				= $parametro[0];
+								$_TRATAMENTO		= $parametro[1];
+								$resultado[$_CHAVE] = $_TRATAMENTO((is_string($_VALOR)) ? urldecode($_VALOR) : $_VALOR);
+							}
+						}
+					}
+					return [
+						'status'=>true,
+						'regex'=>$_REGEX,
+						'setada'=>($FAKE_ROUTE??self::urlPath()),
+						'rota'=>trim($_ROTA,'/'),
+						'params'=>$resultado
+					];
+				} else {
+					return [
+						'status'=>false,
+						'regex'=>$_REGEX,
+						'setada'=>($FAKE_ROUTE??self::urlPath()),
+						'rota'=>trim($_ROTA,'/'),
+						'params'=>[]
+					];
+				}
+			}
 			
 		/*
 		|------------------------------------------------------------------
@@ -299,6 +535,7 @@ use Closure;
 		|
 		|
 		*/
+
 			public function filterParameters($_PARAMS){
 				if ($_SERVER['REQUEST_METHOD'] == 'PUT') {
 					parse_str(file_get_contents("php://input"), $_PUT);
@@ -313,9 +550,6 @@ use Closure;
 				$_REQUEST   = array_intersect_key($_REQUEST,array_flip($_PARAMS));
 				return $this;
 			}
-
-
-
 
 		/*
 		|------------------------------------------------------------------
@@ -346,9 +580,6 @@ use Closure;
 				}
 				return $this;
 			}
-
-
-
 
 		/*
 		|------------------------------------------------------------------
@@ -394,8 +625,16 @@ use Closure;
 				return new static;
 			}
 
+			public function routeInstance($_ROTA, $FAKE_ROUTE = null) {
+				$full_route = "";
+				foreach ($this->group_routersInstance as $group) {
+					$full_route .= $group . '/';
+				}
+				$full_route .= $_ROTA;
 
-
+				$this->handlerInstance = $this->parametrosRota($full_route, $FAKE_ROUTE);
+				return $this;
+			}
 
 		/*
 		|------------------------------------------------------------------
@@ -438,35 +677,67 @@ use Closure;
 				return $next($return);
 			}
 
+			public function callMiddlewareInstance($middlewares, $callback, $return = []) {
+				// Garantir que `$middlewares` seja um array
+				$middlewares = is_array($middlewares) ? $middlewares : [$middlewares];
+
+				// Garantir que `$next` seja um callback válido
+				$next = is_callable($callback) ? $callback : fn() => null;
+
+				// Iterar sobre os middlewares em ordem inversa
+				foreach (array_reverse($middlewares) as $middleware) {
+					if (is_callable($middleware)) {
+						// Middleware é uma função anônima ou callable
+						$next = fn($return) => $middleware($return, $next);
+					} else {
+						// Resolver middlewares no formato `Class@method`
+						[$middleware_class, $middleware_method] = explode('@', $middleware) + [1 => 'handle'];
+
+						if (class_exists($middleware_class)) {
+							// Resolver método da classe
+							$middleware_object = new $middleware_class();
+							if (method_exists($middleware_object, $middleware_method)) {
+								$next = fn($return) => $middleware_object->$middleware_method($return, $next);
+							}
+						} elseif ($this->loadMiddlewareFileInstance($middleware_class)) {
+							// Middleware encontrado em arquivo externo
+							$middleware_object = new $middleware_class();
+							if (method_exists($middleware_object, $middleware_method)) {
+								$next = fn($return) => $middleware_object->$middleware_method($return, $next);
+							}
+						}
+					}
+				}
+
+				// Executar o primeiro middleware da cadeia
+				return $next($return);
+			}
+
 			private static function loadMiddlewareFile($middleware_class) {
 				$filePath	= realpath(__DIR__ . '/../../../../');
 				$pattern	= $filePath . DIRECTORY_SEPARATOR . $middleware_class . '*.php';
 				$files		= glob($pattern);
-
 				if (empty($files)) {
 					$files = glob($filePath . $middleware_class . '.php');
 				}
-
 				foreach ($files as $file) {
 					require_once $file;
 				}
-
 				return class_exists($middleware_class);
 			}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+			public function loadMiddlewareFileInstance($middleware_class) {
+				$filePath = realpath(__DIR__ . '/../../../../');
+				$pattern  = $filePath . DIRECTORY_SEPARATOR . $middleware_class . '*.php';
+				$files    = glob($pattern);
+				if (empty($files)) {
+					$files = glob($filePath . DIRECTORY_SEPARATOR . $middleware_class . '.php');
+				}
+				foreach ($files as $file) {
+					require_once $file;
+				}
+				return class_exists($middleware_class);
+			}
 
 		/*
 		|------------------------------------------------------------------
@@ -486,7 +757,7 @@ use Closure;
 				return ($MODEL_VALIDO && $RANGE1==$RANGE2);
 			}
 
-			public static function group($config, $callback=null,$group=null){
+			public static function groupStatic($config, $callback=null,$group=null){
 
 				if(is_array($config) || !is_null($group)){
 					if(isset($config['prefix']) || !is_null($group)){
@@ -534,6 +805,7 @@ use Closure;
 
 
 
+
 		/*
 		|------------------------------------------------------------------
 		|	VERIFICAÇÃO AO SEU GOSTO 
@@ -567,9 +839,7 @@ use Closure;
 		|
 		|
 		*/
-			public static function send($_REQUEST_METHOD="GET",$_PATH=null,$_SUCESS=null, $_ERROR=null)
-			{
-
+			public static function send($_REQUEST_METHOD="GET",$_PATH=null,$_SUCESS=null, $_ERROR=null){
 				if(is_array($_PATH)){
 					if(isset($_PATH['middleware'])){
 						self::callMiddleware($_PATH['middleware'], function($retornos)use($_PATH,$_REQUEST_METHOD, $_SUCESS,$_ERROR){
@@ -588,10 +858,6 @@ use Closure;
 				return self::request($_REQUEST_METHOD,$_SUCESS,$_ERROR);
 
 			}
-
-
-
-
 
 		/*
 		|------------------------------------------------------------------
@@ -629,39 +895,73 @@ use Closure;
 				}
 			}
 		}
-public static function request($_REQUEST_METHOD=null, $_SUCESS=null, $_ERROR=null){
-    static $executed = false;
-    if(self::$handler['status']==true && !$executed){
-        $executed = true;
-        $PARAMS_URL = array_values(self::$handler['params']);
-        $REQ1 = (!is_array($_REQUEST_METHOD)) ? [strtoupper(trim($_REQUEST_METHOD))] : $_REQUEST_METHOD;
-        $REQ2 = strtoupper(trim($_SERVER['REQUEST_METHOD']));
-        if(in_array($REQ2, $REQ1) || $REQ1[0]=='ANY'){
-            $callbacks = is_array($_SUCESS) ? $_SUCESS : [$_SUCESS];
-            foreach($callbacks as $callback){
-                if(is_string($callback) && strpos($callback, '@') !== false){
-                    list($class, $method) = explode('@', $callback);
-                    $instance = new $class;
-                    call_user_func_array([$instance, $method], $PARAMS_URL);
-                }else if(is_array($callback) && count($callback) == 2){
-                    if(is_string($callback[0])){
-                        $callback[0] = new $callback[0];
-                    }
-                    call_user_func_array($callback, $PARAMS_URL);
-                }else if(is_callable($callback)){
-                    call_user_func_array($callback, $PARAMS_URL);
-                }
-            }
-        }else{
-            if(is_callable($_ERROR)){
-                self::execFn($_ERROR, 'ILEGAL REQUEST_METHOD: '.trim($REQ2));
-            }else{
-                http_response_code(403);
-                die('ILEGAL REQUEST_METHOD '.trim($REQ2));
-            }
-        }
-    }
-}
+
+		public static function request($_REQUEST_METHOD=null, $_SUCESS=null, $_ERROR=null){
+			static $executed = false;
+			if(self::$handler['status']==true && !$executed){
+				$executed = true;
+				$PARAMS_URL = array_values(self::$handler['params']);
+				$REQ1 = (!is_array($_REQUEST_METHOD)) ? [strtoupper(trim($_REQUEST_METHOD))] : $_REQUEST_METHOD;
+				$REQ2 = strtoupper(trim($_SERVER['REQUEST_METHOD']));
+				if(in_array($REQ2, $REQ1) || $REQ1[0]=='ANY'){
+					$callbacks = is_array($_SUCESS) ? $_SUCESS : [$_SUCESS];
+					foreach($callbacks as $callback){
+						if(is_string($callback) && strpos($callback, '@') !== false){
+							list($class, $method) = explode('@', $callback);
+							$instance = new $class;
+							call_user_func_array([$instance, $method], $PARAMS_URL);
+						}else if(is_array($callback) && count($callback) == 2){
+							if(is_string($callback[0])){
+								$callback[0] = new $callback[0];
+							}
+							call_user_func_array($callback, $PARAMS_URL);
+						}else if(is_callable($callback)){
+							call_user_func_array($callback, $PARAMS_URL);
+						}
+					}
+				}else{
+					if(is_callable($_ERROR)){
+						self::execFn($_ERROR, 'ILEGAL REQUEST_METHOD: '.trim($REQ2));
+					}else{
+						http_response_code(403);
+						die('ILEGAL REQUEST_METHOD '.trim($REQ2));
+					}
+				}
+			}
+		}
+
+		public function requestInstance($_REQUEST_METHOD=null, $_SUCESS=null, $_ERROR=null) {
+			static $executed = false;
+			if (!$this->handlerInstance || $this->handlerInstance['status'] !== true || $executed) return;
+			$executed = true;
+
+			$PARAMS_URL = array_values($this->handlerInstance['params'] ?? []);
+			$REQ1 = (!is_array($_REQUEST_METHOD)) ? [strtoupper(trim($_REQUEST_METHOD ?? 'ANY'))] : $_REQUEST_METHOD;
+			$REQ2 = strtoupper(trim($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+
+			if (in_array($REQ2, $REQ1) || $REQ1[0] === 'ANY') {
+				$callbacks = is_array($_SUCESS) ? $_SUCESS : [$_SUCESS];
+				foreach ($callbacks as $callback) {
+					if (is_string($callback) && strpos($callback, '@') !== false) {
+						list($class, $method) = explode('@', $callback);
+						$instance = new $class;
+						call_user_func_array([$instance, $method], $PARAMS_URL);
+					} elseif (is_array($callback) && count($callback) == 2) {
+						if (is_string($callback[0])) $callback[0] = new $callback[0];
+						call_user_func_array($callback, $PARAMS_URL);
+					} elseif (is_callable($callback)) {
+						call_user_func_array($callback, $PARAMS_URL);
+					}
+				}
+			} else {
+				if (is_callable($_ERROR)) {
+					$this->execFnInstance($_ERROR, 'ILEGAL REQUEST_METHOD: '.trim($REQ2));
+				} else {
+					http_response_code(403);
+					die('ILEGAL REQUEST_METHOD '.trim($REQ2));
+				}
+			}
+		}
 
 
 	}
