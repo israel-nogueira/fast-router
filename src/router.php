@@ -82,11 +82,14 @@ use Closure;
 				$this->paths_instances[] = &$group;
 			}
 
-			// Empilha o grupo atual e executa o callback (sem execução real ainda)
+			// Empilha o grupo atual
 			$this->currentGroupStack[] = &$group;
+
+			// Executa o callback passando a própria instância de ROTA
 			if (is_callable($callback)) {
-				$callback($group); // aqui ainda não processa nada, só estrutura
+				$callback($this); // passa $this em vez de $group
 			}
+
 			array_pop($this->currentGroupStack); // remove do stack
 
 			return $group;
@@ -151,24 +154,11 @@ use Closure;
 			return $result;
 		}
 
-		public function processa() {
-			foreach ($this->paths_instances as $value) {
-				$routes = $this->collectPathWithMiddleware($value, [], '');
-				foreach ($routes as $route) {
-					if (!isset($route['callback'])) continue;
-					$parametros = $this->parametrosRotaInstance($route['full_prefix'], null);
-					$sonsolidado = ['status'=>$parametros['status'],'setada'=>$parametros['setada'],'params'=>$parametros['params'],'regex'=>$parametros['regex'],'method'=>$route['method'],'full_prefix'=>$route['full_prefix'],'all_middlewares'=>$route['all_middlewares'],'callback'=>$route['callback']];
-					if (empty($parametros['status'])) continue;
-					$this->sendInstanceConsolidado($sonsolidado);
-					break 2;
-				}
-			}
-		}
-
 		public function sendInstanceConsolidado(array $route) {
 			$middlewares = $route['all_middlewares'] ?? [];
 			$params = $route['params'] ?? [];
 			$callback = $route['callback'] ?? null;
+
 			if (!empty($middlewares)) {
 				$this->callMiddlewareInstance($middlewares, function($retornos) use ($callback, $params) {
 					$this->middlewareInstance = $retornos;
@@ -182,6 +172,21 @@ use Closure;
 		}
 
 
+		public function processa() {
+			foreach ($this->paths_instances as $value) {
+				$routes = $this->collectPathWithMiddleware($value, [], '');
+				foreach ($routes as $route) {
+					if (!isset($route['callback'])) continue;
+					$parametros = $this->parametrosRotaInstance($route['full_prefix'], null);
+					$consolidado = ['status'=>$parametros['status'],'setada'=>$parametros['setada'],'params'=>$parametros['params'],'regex'=>$parametros['regex'],'method'=>$route['method'],'full_prefix'=>$route['full_prefix'],'all_middlewares'=>$route['all_middlewares'],'callback'=>$route['callback']];
+					if (empty($parametros['status'])) continue;
+					$this->sendInstanceConsolidado($consolidado);
+					if(empty($route['options']['continue']) || $route['options']['continue']==false){
+						break 2;
+					}
+				}
+			}
+		}
 		/**-----------------------------------------------------------
 		 *	MODO ESTATICO
 		 * -----------------------------------------------------------
@@ -370,33 +375,52 @@ use Closure;
 				// throw new Exception('Function or method not found');
 			}
 
-			public function execFnInstance($function, ...$parameters) {
-				if (is_callable($function)) {
-					if (is_string($function)) {
-						if (function_exists($function)) {
-							return call_user_func_array($function, $parameters);
-						} elseif (strpos($function, '::') !== false) {
-							list($class, $method) = explode('::', $function);
-							if (class_exists($class) && method_exists($class, $method)) {
-								return call_user_func_array($function, $parameters);
+			private function execFnInstance($callback, ...$params) {
+				// 1) Se for Closure, só executa
+				if ($callback instanceof \Closure) {
+					return $callback(...$params);
+				}
+
+				// 2) Se for string no formato "Classe@metodo"
+				if (is_string($callback) && strpos($callback, '@') !== false) {
+					list($class, $method) = explode('@', $callback);
+					if (class_exists($class)) {
+						$instance = new $class();
+						if (method_exists($instance, $method)) {
+							return $instance->$method(...$params);
+						}
+					}
+					throw new \Exception("Callback inválido: {$callback}");
+				}
+
+				// 3) Se for array no formato [callable, param1, param2...]
+				if (is_array($callback)) {
+					$fn = array_shift($callback); // pega a função/método
+					$args = array_merge($callback, $params); // junta params do array + params da rota
+					if (is_string($fn) && strpos($fn, '@') !== false) {
+						list($class, $method) = explode('@', $fn);
+						if (class_exists($class)) {
+							$instance = new $class();
+							if (method_exists($instance, $method)) {
+								return $instance->$method(...$args);
 							}
 						}
-					} elseif (is_array($function) && count($function) == 2) {
-						list($object, $method) = $function;
-						if (is_object($object) && method_exists($object, $method)) {
-							return call_user_func_array([$object, $method], $parameters);
-						}
-					} else {
-						return $function($parameters);
+						throw new \Exception("Callback inválido: {$fn}");
 					}
-				} elseif (is_string($function) && strpos($function, '@') !== false) {
-					list($class, $method) = explode('@', $function);
-					if (class_exists($class) && method_exists($class, $method)) {
-						$object = new $class();
-						return call_user_func_array([$object, $method], $parameters);
+					if (is_callable($fn)) {
+						return $fn(...$args);
 					}
+					throw new \Exception("Callback não executável");
 				}
+
+				// fallback
+				if (is_callable($callback)) {
+					return $callback(...$params);
+				}
+
+				throw new \Exception("Tipo de callback não suportado");
 			}
+
 
 
 		/*
@@ -406,7 +430,7 @@ use Closure;
 		|	Criamos o regex que será validado na sequencia 
 		|------------------------------------------------------------------
 		*/
-			public static function gerarRegex( $rota ){
+			public static function gerarRegex_OLD( $rota ){
 				$rota             = str_replace( ["{","}"], ["｛", "｝"], $rota );
 				$regex_parametros = "/｛(?'chamada'((((((?'parametro'([a-z0-9\_,]+))\:)?(?'valor'([^｛｝]+))))|(?R))*))｝/";
 				$regex_final      = '';
@@ -430,6 +454,46 @@ use Closure;
 				$regex_final = '/^' . $regex_final . '(\/)?$/';
 				return $regex_final;
 			} 
+
+
+			public static function gerarRegex($rota) {
+				$rota             = str_replace(["{","}"], ["｛", "｝"], $rota);
+				$regex_parametros = "/｛(?'chamada'((((((?'parametro'([a-z0-9\_,]+))\:)?(?'valor'([^｛｝]+))))|(?R))*))｝/";
+				$regex_final      = '';
+				$regex_final      = preg_replace_callback($regex_parametros, function ($match) {
+					$novo = $match[0];
+					$novo = str_replace(["｛", "｝"], ["(", ")"], $novo);
+					if (isset($match['parametro']) && !empty($match['parametro'])) {
+						$novo = str_replace(
+							$match['chamada'],
+							"(?'" . str_replace(",", "___", $match['parametro']) . "'(" . $match['valor'] . "))",
+							$novo
+						);
+					} else {
+						$novo = str_replace(
+							$match['chamada'],
+							"(?'" . str_replace(",", "___", $match['valor']) . "'_closure_+)",
+							$novo
+						);
+					}
+					return $novo;
+				}, $rota);
+
+				while (preg_match("/\[\/(.*)\/\]/", $regex_final, $match)) {
+					$novo        = preg_replace(["/^\[\//","/\/\]$/"], ["(\/",")?"], $match[0]);
+					$regex_final = str_replace($match[0], $novo, $regex_final);
+				}
+
+				// suporte ao * como coringa puro
+				$regex_final = str_replace("*", ".*", $regex_final);
+				$regex_final = str_replace("_closure_", "[^\/]", $regex_final);
+				$regex_final = preg_replace("/^\//", "\/", $regex_final);
+				$regex_final = preg_replace("/([^\\\])\//", "$1\/", $regex_final);
+				$regex_final = '/^' . $regex_final . '(\/)?$/';
+
+				return $regex_final;
+			}
+
 
 		/*
 		|------------------------------------------------------------------
@@ -744,8 +808,7 @@ use Closure;
 		|	GROUPS
 		|-------------------------------------------------------------------
 		*/
-			public static function verifyGroup($_GRUPO)
-			{
+			public static function verifyGroup($_GRUPO){
 				$MODELO 		=	trim($_GRUPO, '/');
 				$MODEL_VALIDO 	=	preg_match('/^[a-zA-Z0-9\/\-]+$/', $MODELO);
 				$GRUPO_STRING	=	implode('/',self::$group_routers);
@@ -802,18 +865,13 @@ use Closure;
 				
 			}
 
-
-
-
-
 		/*
 		|------------------------------------------------------------------
 		|	VERIFICAÇÃO AO SEU GOSTO 
 		|-------------------------------------------------------------------
 		|	Poderá ser colocado uma função no $_VAR ou um parametro boleano 
 		*/
-			public function verify($_VAR,$_RETORNO)
-			{
+			public function verify($_VAR,$_RETORNO){
 				if($_VAR==false){
 					if (is_callable($_RETORNO)) {
 						$_RETORNO($_VAR);
@@ -824,9 +882,6 @@ use Closure;
 				}
 				return $this;
 			}
-
-
-
 
 		/*
 		|------------------------------------------------------------------
