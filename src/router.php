@@ -31,11 +31,11 @@ use Closure;
 		 * -------------------------------------------------
 		 *  PRIMEIRO INSTANCIA TUDO PARA DEPOIS PROCESSAR
 		 * $_ROTA = new router();
-		 * $_ROTA->group([],'');
-		 * $_ROTA->post([],'');
-		 * $_ROTA->get([],'');
-		 * $_ROTA->any([],'');
-		 * $_ROTA->processa(); <---- apenas aqui processa
+		 * $_ROTA()->group([],'');
+		 * $_ROTA()->post([],'');
+		 * $_ROTA()->get([],'');
+		 * $_ROTA()->any([],'');
+		 * $_ROTA()->processa(); <---- apenas aqui processa
 		 * -------------------------------------------------*/
 		public function __call($name, $arguments){
 			if ($name === 'group') { 
@@ -60,40 +60,43 @@ use Closure;
 			
 		}
 
-		public function groupInstance($config, $callback = null) {
-			$prefix = $config['prefix'] ?? null;
+public function groupInstance($config, $callback = null) {
+    $prefix = $config['prefix'] ?? null;
 
-			$group = [
-				'type' => 'group',
-				'method' => 'GROUP',
-				'options' => [
-					'prefix' => $prefix,
-					'middleware' => $config['middleware'] ?? [],
-					'callback' => $callback
-				],
-				'children' => []
-			];
+    $group = [
+        'type' => 'group',
+        'method' => 'GROUP',
+        'options' => [
+            'prefix' => $prefix,
+            'middleware' => $config['middleware'] ?? [],
+            'callback' => $callback
+        ],
+        'children' => []
+    ];
 
-			// Se houver grupo ativo, adiciona como filho
-			if (!empty($this->currentGroupStack)) {
-				$parent = &$this->currentGroupStack[count($this->currentGroupStack)-1];
-				$parent['children'][] = &$group;
-			} else {
-				$this->paths_instances[] = &$group;
-			}
+    // CORREÇÃO 1: Adiciona ao paths_instances ANTES de empilhar
+    if (empty($this->currentGroupStack)) {
+        $this->paths_instances[] = &$group;
+    }
 
-			// Empilha o grupo atual
-			$this->currentGroupStack[] = &$group;
+    // Empilha o grupo atual
+    $this->currentGroupStack[] = &$group;
 
-			// Executa o callback passando a própria instância de ROTA
-			if (is_callable($callback)) {
-				$callback($this); // passa $this em vez de $group
-			}
+    // CORREÇÃO 2: Adiciona como filho se houver pai
+    if (count($this->currentGroupStack) > 1) {
+        $parent = &$this->currentGroupStack[count($this->currentGroupStack) - 2];
+        $parent['children'][] = &$group;
+    }
 
-			array_pop($this->currentGroupStack); // remove do stack
+    // Executa o callback passando a própria instância de ROTA
+    if (is_callable($callback)) {
+        $callback($this);
+    }
 
-			return $group;
-		}
+    array_pop($this->currentGroupStack);
+
+    return $group;
+}
 
 		private function collectPath(array $path, $prefix = '') {
 			$currentPrefix = $path['options']['prefix'] ?? '';
@@ -131,26 +134,40 @@ use Closure;
 
 		public function collectPathWithMiddleware($node, $parentMiddlewares = [], $parentPrefix = '') {
 			$result = [];
-			// acumula os middlewares do grupo atual
+			
+			// Acumula middlewares
 			$currentMiddlewares = $parentMiddlewares;
 			if (!empty($node['options']['middleware'])) {
 				$currentMiddlewares = array_merge($currentMiddlewares, $node['options']['middleware']);
 			}
-			// acumula o prefix completo
-			$currentPrefix = rtrim($parentPrefix . '/' . ltrim($node['options']['prefix'] ?? '', '/'), '/');
-
+			
+			// CORREÇÃO: Monta o prefix corretamente
+			$nodePrefix = $node['options']['prefix'] ?? '';
+			if ($nodePrefix !== '' && $nodePrefix !== null) {
+				$currentPrefix = $parentPrefix 
+					? rtrim($parentPrefix, '/') . '/' . trim($nodePrefix, '/')
+					: trim($nodePrefix, '/');
+			} else {
+				$currentPrefix = $parentPrefix;
+			}
+			
+			// Se for rota, adiciona ao resultado
 			if ($node['type'] === 'route') {
 				$node['all_middlewares'] = $currentMiddlewares;
 				$node['full_prefix'] = $currentPrefix;
 				$result[] = $node;
 			}
-
+			
+			// Processa filhos recursivamente
 			if (!empty($node['children'])) {
 				foreach ($node['children'] as $child) {
-					$result = array_merge($result, $this->collectPathWithMiddleware($child, $currentMiddlewares, $currentPrefix));
+					$result = array_merge(
+						$result, 
+						$this->collectPathWithMiddleware($child, $currentMiddlewares, $currentPrefix)
+					);
 				}
 			}
-
+			
 			return $result;
 		}
 
@@ -175,12 +192,39 @@ use Closure;
 		public function processa() {
 			foreach ($this->paths_instances as $value) {
 				$routes = $this->collectPathWithMiddleware($value, [], '');
+				
+				// echo "<br><br>ROTAS COLETADAS:<br>";
+				// foreach ($routes as $r) {
+				// 	echo "- {$r['method']} => {$r['full_prefix']}<br>";
+				// }
+				
 				foreach ($routes as $route) {
 					if (!isset($route['callback'])) continue;
+					
 					$parametros = $this->parametrosRotaInstance($route['full_prefix'], null);
-					$consolidado = ['status'=>$parametros['status'],'setada'=>$parametros['setada'],'params'=>$parametros['params'],'regex'=>$parametros['regex'],'method'=>$route['method'],'full_prefix'=>$route['full_prefix'],'all_middlewares'=>$route['all_middlewares'],'callback'=>$route['callback']];
+					
+					// echo "<br>TESTANDO: {$route['full_prefix']}<br>";
+					// echo "URL: " . self::urlPath() . "<br>";
+					// echo "REGEX: {$parametros['regex']}<br>";
+					// echo "MATCH: " . ($parametros['status'] ? 'SIM' : 'NÃO') . "<br>";
+					
 					if (empty($parametros['status'])) continue;
+					
+					// echo "<br>EXECUTANDO!<br>";
+					
+					$consolidado = [
+						'status' => $parametros['status'],
+						'setada' => $parametros['setada'],
+						'params' => $parametros['params'],
+						'regex' => $parametros['regex'],
+						'method' => $route['method'],
+						'full_prefix' => $route['full_prefix'],
+						'all_middlewares' => $route['all_middlewares'],
+						'callback' => $route['callback']
+					];
+					
 					$this->sendInstanceConsolidado($consolidado);
+					
 					if(empty($route['options']['continue']) || $route['options']['continue']==false){
 						break 2;
 					}
@@ -457,42 +501,48 @@ use Closure;
 
 
 			public static function gerarRegex($rota) {
-				$rota             = str_replace(["{","}"], ["｛", "｝"], $rota);
+				// 1. Limpa e protege chaves
+				$rota = trim($rota, '/');
+				
+				// 2. PROTEGE colchetes opcionais [/path/] temporariamente
+				$rota = str_replace('[/', '___BRACKET_OPEN___', $rota);
+				$rota = str_replace('/]', '___BRACKET_CLOSE___', $rota);
+				
+				// 3. Protege parâmetros {id}
+				$rota = str_replace(["{", "}"], ["｛", "｝"], $rota);
+
+				// 4. Processa parâmetros
 				$regex_parametros = "/｛(?'chamada'((((((?'parametro'([a-z0-9\_,]+))\:)?(?'valor'([^｛｝]+))))|(?R))*))｝/";
-				$regex_final      = '';
-				$regex_final      = preg_replace_callback($regex_parametros, function ($match) {
-					$novo = $match[0];
-					$novo = str_replace(["｛", "｝"], ["(", ")"], $novo);
+				$regex_final = preg_replace_callback($regex_parametros, function ($match) {
 					if (isset($match['parametro']) && !empty($match['parametro'])) {
-						$novo = str_replace(
-							$match['chamada'],
-							"(?'" . str_replace(",", "___", $match['parametro']) . "'(" . $match['valor'] . "))",
-							$novo
-						);
+						// Parâmetro com padrão: {id:[0-9]+}
+						return "(?'" . str_replace(",", "___", $match['parametro']) . "'" . $match['valor'] . ")";
 					} else {
-						$novo = str_replace(
-							$match['chamada'],
-							"(?'" . str_replace(",", "___", $match['valor']) . "'_closure_+)",
-							$novo
-						);
+						// Parâmetro simples: {id} → usa marcador temporário
+						return "(?'" . str_replace(",", "___", $match['valor']) . "'___PARAM_PATTERN___)";
 					}
-					return $novo;
 				}, $rota);
 
-				while (preg_match("/\[\/(.*)\/\]/", $regex_final, $match)) {
-					$novo        = preg_replace(["/^\[\//","/\/\]$/"], ["(\/",")?"], $match[0]);
-					$regex_final = str_replace($match[0], $novo, $regex_final);
-				}
+				// 5. Suporte ao coringa *
+				$regex_final = str_replace("*", "___WILDCARD___", $regex_final);
 
-				// suporte ao * como coringa puro
-				$regex_final = str_replace("*", ".*", $regex_final);
-				$regex_final = str_replace("_closure_", "[^\/]", $regex_final);
-				$regex_final = preg_replace("/^\//", "\/", $regex_final);
-				$regex_final = preg_replace("/([^\\\])\//", "$1\/", $regex_final);
-				$regex_final = '/^' . $regex_final . '(\/)?$/';
+				// 6. Escapa barras PRIMEIRO
+				$regex_final = str_replace('/', '\/', $regex_final);
 
-				return $regex_final;
+				// 7. DEPOIS substitui os marcadores temporários
+				$regex_final = str_replace('___PARAM_PATTERN___', '[^\/]+', $regex_final);
+				$regex_final = str_replace('___WILDCARD___', '.*', $regex_final);
+
+				// 8. Restaura colchetes opcionais
+				$regex_final = str_replace('___BRACKET_OPEN___', '(\/', $regex_final);
+				$regex_final = str_replace('___BRACKET_CLOSE___', ')?', $regex_final);
+
+				// 9. Monta regex final
+				return '/^' . $regex_final . '(\/)?$/i';
 			}
+
+
+
 
 
 		/*
@@ -555,7 +605,7 @@ use Closure;
 				}
 			}
 
-			public function parametrosRotaInstance($_ROTA,$FAKE_ROUTE=NULL){
+			public function parametrosRotaInstance_OLD($_ROTA,$FAKE_ROUTE=NULL){
 				$_REGEX = self::gerarRegex(trim($_ROTA,'/'));
 				if (preg_match($_REGEX, ($FAKE_ROUTE??self::urlPath()), $resultado)) {
 					foreach ($resultado as $k => $_VALOR) {
@@ -588,7 +638,75 @@ use Closure;
 					];
 				}
 			}
-			
+
+			public function parametrosRotaInstance($_ROTA,$FAKE_ROUTE=NULL){
+				$_REGEX = self::gerarRegex(trim($_ROTA,'/'));
+				
+				try {
+					$url = $FAKE_ROUTE ?? self::urlPath();
+					
+					// Tenta fazer o match
+					$result = @preg_match($_REGEX, $url, $resultado);
+					
+					// Se deu erro no regex
+					if ($result === false) {
+						// echo "<pre>";
+						// echo "ERRO NO PREG_MATCH!\n";
+						// echo "ROTA: " . $_ROTA . "\n";
+						// echo "URL: " . $url . "\n";
+						// echo "REGEX: " . $_REGEX . "\n";
+						// echo "ERRO: " . preg_last_error_msg() . "\n";
+						// echo "</pre>";
+						
+						return [
+							'status'=>false,
+							'regex'=>$_REGEX,
+							'setada'=>$url,
+							'rota'=>trim($_ROTA,'/'),
+							'params'=>[]
+						];
+					}
+					
+					if ($result > 0) {
+						foreach ($resultado as $k => $_VALOR) {
+							if (is_numeric($k)) {
+								unset($resultado[$k]);
+							} else {
+								if (preg_match("/___/", $k)) {
+									$parametro = explode("___", $k);
+									unset($resultado[$k]);
+									$_CHAVE = $parametro[0];
+									$_TRATAMENTO = $parametro[1];
+									$resultado[$_CHAVE] = $_TRATAMENTO((is_string($_VALOR)) ? urldecode($_VALOR) : $_VALOR);
+								}
+							}
+						}
+						return [
+							'status'=>true,
+							'regex'=>$_REGEX,
+							'setada'=>$url,
+							'rota'=>trim($_ROTA,'/'),
+							'params'=>$resultado
+						];
+					} else {
+						return [
+							'status'=>false,
+							'regex'=>$_REGEX,
+							'setada'=>$url,
+							'rota'=>trim($_ROTA,'/'),
+							'params'=>[]
+						];
+					}
+				} catch (\Exception $e) {
+					echo "<pre>";
+					echo "EXCEÇÃO CAPTURADA!\n";
+					echo "ROTA: " . $_ROTA . "\n";
+					echo "REGEX: " . $_REGEX . "\n";
+					echo "ERRO: " . $e->getMessage() . "\n";
+					echo "</pre>";
+					die();
+				}
+			}
 		/*
 		|------------------------------------------------------------------
 		|	FILTRANDO OS PARÂMETROS
