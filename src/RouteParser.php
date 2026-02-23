@@ -22,9 +22,12 @@ class RouteParser
         $pattern = trim($pattern, '/');
         
         // Escape special regex characters except our placeholders
-        $pattern = preg_replace_callback('/[.\[\](){}^$|*+?\\\\]/', function($matches) {
+        $pattern = preg_replace_callback('/[.\/\[\](){}^$|*+?\\\\]/', function($matches) {
             return '\\' . $matches[0];
         }, $pattern);
+        
+        // Handle optional wildcard [/*/] - matches /anything or empty
+        $pattern = preg_replace('/\\\\\[\\\\\\/\\\\\*\\\\\\/\\\\\]/', '(?:/.*)?', $pattern);
         
         // Handle optional parameters [/{param}/]
         $pattern = preg_replace_callback('/\\\\\[\/\{([^}]+)\}\/\\\\\]/', function($matches) {

@@ -26,11 +26,6 @@ use IsraelNogueira\FastRouter\Exceptions\RouterException;
 class Router
 {
     /**
-     * Static auto-dispatch flag
-     */
-    private static bool $autoDispatch = false;
-    
-    /**
      * Static instance for static calls
      */
     private static ?Router $staticInstance = null;
@@ -182,7 +177,7 @@ class Router
     /**
      * Process and execute routes
      */
-    public function dispatch(?string $method = null, ?string $url = null): mixed
+    public function processa(?string $method = null, ?string $url = null): mixed
     {
         if ($this->executed) {
             return null;
@@ -232,6 +227,14 @@ class Router
         }
         
         return null;
+    }
+    
+    /**
+     * Alias for processa()
+     */
+    public function dispatch(?string $method = null, ?string $url = null): mixed
+    {
+        return $this->processa($method, $url);
     }
     
     /**
@@ -289,14 +292,6 @@ class Router
     // ==================== STATIC MODE ====================
     
     /**
-     * Enable auto-dispatch for static mode
-     */
-    public static function enableAutoDispatch(bool $enabled = true): void
-    {
-        self::$autoDispatch = $enabled;
-    }
-    
-    /**
      * Get static instance
      */
     private static function getInstance(): Router
@@ -313,17 +308,12 @@ class Router
      * 
      * @param array<mixed> $arguments
      */
-    public static function __callStatic(string $name, array $arguments): void
+    public static function __callStatic(string $name, array $arguments): mixed
     {
         $instance = self::getInstance();
         
-        // Call instance method
-        $instance->{$name}(...$arguments);
-        
-        // Auto-dispatch only if enabled and not a group
-        if (self::$autoDispatch && $name !== 'group') {
-            $instance->dispatch();
-        }
+        // Call instance method and return result
+        return $instance->{$name}(...$arguments);
     }
     
     /**
@@ -332,13 +322,5 @@ class Router
     public static function resetStatic(): void
     {
         self::$staticInstance = null;
-    }
-    
-    /**
-     * Static dispatch method
-     */
-    public static function run(?string $method = null, ?string $url = null): mixed
-    {
-        return self::getInstance()->dispatch($method, $url);
     }
 }

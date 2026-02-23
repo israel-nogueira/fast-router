@@ -68,6 +68,12 @@ class RouteGroup
             return $pattern;
         }
         
+        // Se pattern começa com [ (opcional), não adiciona /
+        $trimmedPattern = ltrim($pattern, '/');
+        if (strlen($trimmedPattern) > 0 && $trimmedPattern[0] === '[') {
+            return rtrim($this->prefix, '/') . $trimmedPattern;
+        }
+        
         return rtrim($this->prefix, '/') . '/' . ltrim($pattern, '/');
     }
     
