@@ -26,7 +26,7 @@ class RouteGroup
         public readonly string $namespace = ''
     ) {
     }
-    
+
     /**
      * Merge with parent group
      */
@@ -38,7 +38,7 @@ class RouteGroup
             namespace: $this->namespace ?: $parent->namespace
         );
     }
-    
+
     /**
      * Merge prefixes
      */
@@ -47,18 +47,18 @@ class RouteGroup
         if ($parent === '' && $current === '') {
             return '';
         }
-        
+
         if ($parent === '') {
             return '/' . trim($current, '/');
         }
-        
+
         if ($current === '') {
             return '/' . trim($parent, '/');
         }
-        
+
         return '/' . trim($parent, '/') . '/' . trim($current, '/');
     }
-    
+
     /**
      * Apply group attributes to route pattern
      */
@@ -67,16 +67,18 @@ class RouteGroup
         if ($this->prefix === '') {
             return $pattern;
         }
-        
-        // Se pattern começa com [ (opcional), não adiciona /
-        $trimmedPattern = ltrim($pattern, '/');
-        if (strlen($trimmedPattern) > 0 && $trimmedPattern[0] === '[') {
-            return rtrim($this->prefix, '/') . $trimmedPattern;
+
+        $pattern = ltrim($pattern, '/');
+
+        // Se o pattern começa com [ (opcional), não adiciona barra separadora
+        // ex: prefix=office, pattern=[/*/]  →  office[/*/]
+        if (str_starts_with($pattern, '[')) {
+            return rtrim($this->prefix, '/') . $pattern;
         }
-        
-        return rtrim($this->prefix, '/') . '/' . ltrim($pattern, '/');
+
+        return rtrim($this->prefix, '/') . '/' . $pattern;
     }
-    
+
     /**
      * Check if group prefix matches current URL
      */
@@ -85,10 +87,10 @@ class RouteGroup
         if ($this->prefix === '') {
             return true;
         }
-        
+
         $prefix = '/' . trim($this->prefix, '/');
-        $url = '/' . trim($url, '/');
-        
+        $url    = '/' . trim($url, '/');
+
         return strpos($url, $prefix) === 0;
     }
 }
