@@ -1,30 +1,45 @@
 {
     "name": "israel-nogueira/fast-router",
-    "description": "Classe para gerenciar as suas rotas no PHP com facilidade e segurança",
-    "homepage": "https://github.com/israel-nogueira/fast-router",
+    "description": "Modern, fast and flexible PHP router with support for static and instance modes, middleware chains, and advanced routing features",
     "type": "library",
-    "license": "GPL-3.0-or-later",
-
     "keywords": [
-        "israel",
-        "nogueira",
-        "fast",
-        "router"
+        "router",
+        "routing",
+        "middleware",
+        "php",
+        "fast-router",
+        "http",
+        "url-routing"
     ],
+    "license": "GPL-3.0-or-later",
     "authors": [
         {
             "name": "Israel Nogueira",
-            "email": "israel@feats.com.br",
-            "homepage": "https://github.com/israel-nogueira",
-            "role": "Developer"
+            "email": "israel@feats.com",
+            "homepage": "https://github.com/israel-nogueira"
         }
     ],
     "require": {
-        "php": "^7.3||^8.0"
+        "php": ">=8.1"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0",
+        "phpstan/phpstan": "^1.10"
     },
     "autoload": {
         "psr-4": {
-            "IsraelNogueira\\fastRouter\\": "src"
+            "IsraelNogueira\\FastRouter\\": "src/"
         }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "IsraelNogueira\\FastRouter\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "scripts": {
+        "test": "phpunit",
+        "analyse": "phpstan analyse src --level=8"
     }
 }
