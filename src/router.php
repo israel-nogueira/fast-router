@@ -288,7 +288,32 @@ class Router
         $this->executed = false;
         return $this;
     }
-    
+
+	/**
+	 * Scan a directory for module router files and register routes
+	 * Each module must have a {ModuleName}.router.php returning a callable
+	 * 
+	 * @param string $dir Absolute path to modules directory
+	 */
+	public function map(string $dir): self
+	{
+		if (!is_dir($dir)) return $this;
+
+		foreach (glob("{$dir}/*/") as $modulePath) {
+			$moduleName = basename($modulePath);
+			$routerFile = $modulePath . ucfirst($moduleName) . '.router.php';
+
+			if (file_exists($routerFile)) {
+				$fn = require $routerFile;
+				if (is_callable($fn)) {
+					$fn($this);
+				}
+			}
+		}
+		return $this;
+	}
+
+
     // ==================== STATIC MODE ====================
     
     /**
@@ -323,4 +348,14 @@ class Router
     {
         self::$staticInstance = null;
     }
+
+
+
+
+
+
+
+
+
+	
 }
