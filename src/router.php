@@ -300,11 +300,8 @@ class Router
 		if (!is_dir($dir)) return $this;
 
 		foreach (glob("{$dir}/*/") as $modulePath) {
-			$moduleName = basename($modulePath);
-			$routerFile = $modulePath . ucfirst($moduleName) . '.router.php';
-
-			if (file_exists($routerFile)) {
-				$fn = require $routerFile;
+			foreach (glob($modulePath . '*.router.php') as $routerFile) {
+				$fn = include $routerFile;
 				if (is_callable($fn)) {
 					$fn($this);
 				}
